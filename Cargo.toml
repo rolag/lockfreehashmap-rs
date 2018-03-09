@@ -1,0 +1,8 @@
+[package]
+name = "lockfreehashmap"
+version = "0.1.0"
+authors = [" <>"]
+
+[dependencies]
+crossbeam = { version = "0.4.0", git = "https://github.com/crossbeam-rs/crossbeam/"}
+crossbeam-epoch = "0.4.0"
