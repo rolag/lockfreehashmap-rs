@@ -27,7 +27,7 @@
 extern crate crossbeam;
 
 use crossbeam::epoch::Guard;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::fmt;
 use std::hash::Hash;
@@ -37,7 +37,7 @@ mod map_inner;
 
 pub use crossbeam::epoch::pin;
 use atomic::AtomicBox;
-use map_inner::{MapInner, Match, PutValue, ValueSlot};
+use map_inner::{KeyCompare, MapInner, Match, PutValue, ValueSlot};
 
 pub const COPY_CHUNK_SIZE: usize = 32;
 
@@ -46,7 +46,7 @@ pub struct LockFreeHashMap<'map, K, V: 'map, S = RandomState> {
     inner: AtomicBox<MapInner<'map,K,V,S>>,
 }
 
-impl<'guard, 'map: 'guard, K: Hash + Eq + Clone, V> LockFreeHashMap<'map,K,V> {
+impl<'guard, 'map: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'map,K,V> {
 
     /// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.
     pub const DEFAULT_CAPACITY: usize = MapInner::<K,V>::DEFAULT_CAPACITY;
@@ -110,10 +110,10 @@ impl<'guard, 'map: 'guard, K: Hash + Eq + Clone, V> LockFreeHashMap<'map,K,V> {
     /// returned. If the map did have this key present, the value is updated, and the old value is
     /// returned. The key is not updated, though; this matters for types that can be `==` without
     /// being identical.
-    pub fn insert(&'guard self, key: K, value: V, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn insert(&self, key: K, value: V, guard: &'guard Guard) -> Option<&'guard V>
     {
         let value_slot: Option<&ValueSlot<V>> = self.load_inner(guard).put_if_match(
-            Cow::Owned(key),
+            KeyCompare::new(key),
             PutValue::new(value),
             Match::Always,
             &self.inner,
@@ -127,12 +127,12 @@ impl<'guard, 'map: 'guard, K: Hash + Eq + Clone, V> LockFreeHashMap<'map,K,V> {
     /// returned. If the map did have this key present, the value is updated, and the old value is
     /// returned. The key is not updated, though; this matters for types that can be `==` without
     /// being identical.
-    pub fn replace<Q: ?Sized>(&'guard self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn replace<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
         where K: Borrow<Q>,
-              Q: ToOwned<Owned = K> + Hash + Eq + PartialEq<K>,
+              Q: Hash + Eq + PartialEq<K>,
     {
         let value_slot: Option<&ValueSlot<V>> = self.load_inner(guard).put_if_match(
-            Cow::Borrowed(key),
+            KeyCompare::OnlyCompare(key),
             PutValue::new_tombstone(),
             Match::AnyKeyValuePair,
             &self.inner,
@@ -144,12 +144,12 @@ impl<'guard, 'map: 'guard, K: Hash + Eq + Clone, V> LockFreeHashMap<'map,K,V> {
     /// Removes a key from the map, returning the value at the key if the key was previously in the
     /// map. The key may be any borrowed form of the map's key type, but Hash and Eq on the
     /// borrowed form must match those for the key type.
-    pub fn remove<Q: ?Sized>(&'guard self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn remove<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
         where K: Borrow<Q>,
-              Q: ToOwned<Owned = K> + Hash + Eq + PartialEq<K>,
+              Q: Hash + Eq + PartialEq<K>,
     {
         let value_slot: Option<&ValueSlot<V>> = self.load_inner(guard).put_if_match(
-            Cow::Borrowed(key),
+            KeyCompare::OnlyCompare(key),
             PutValue::new_tombstone(),
             Match::Always,
             &self.inner,
@@ -169,7 +169,7 @@ impl<'map, K, V, S> Drop for LockFreeHashMap<'map, K, V, S> {
     }
 }
 
-impl<'guard, 'map: 'guard, K: Hash + Eq + Clone + fmt::Debug, V: fmt::Debug>
+impl<'guard, 'map: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug>
     fmt::Debug for LockFreeHashMap<'map,K,V>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -164,6 +164,17 @@ impl<T> AtomicPtr<T> {
             .map_err(|e| (MaybeNull(e.current), NotNull(e.new)))
     }
 
+    pub fn compare_null_and_set<'g>(
+        &self,
+        set: NotNull<'g, T>,
+        guard: &'g Guard
+    ) -> Result<NotNull<'g, T>, (NotNull<'g, T>, NotNull<'g, T>)>
+    {
+        self.0.compare_and_set(Shared::null(), set.as_shared(), ORDERING, guard)
+            .map(|set| NotNull(set))
+            .map_err(|e| (NotNull(e.current), NotNull(e.new)))
+    }
+
     pub fn compare_null_and_set_owned<'g>(
         &self,
         set: NotNullOwned<T>,
@@ -201,6 +212,10 @@ impl<T> AtomicPtr<T> {
 
     pub fn set_should_deallocate<'g>(&self, guard: &'g Guard) {
         self.0.fetch_or(1, ORDERING, guard);
+    }
+
+    pub fn set_should_not_deallocate<'g>(&self, guard: &'g Guard) {
+        self.0.fetch_and(0, ORDERING, guard);
     }
 
     pub fn should_deallocate<'g>(&self, guard: &'g Guard) -> bool {

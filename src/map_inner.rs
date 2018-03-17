@@ -16,7 +16,7 @@
 
 use crossbeam;
 use crossbeam::epoch::{Guard, Shared};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -104,6 +104,57 @@ impl Match {
     }
 }
 
+pub enum KeyCompare<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
+    Owned(NotNullOwned<K>),
+    Shared(NotNull<'k, KeySlot<K>>),
+    OnlyCompare(&'q Q),
+}
+
+impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> KeyCompare<'k, 'q, K, Q> {
+    pub fn new(key: K) -> Self {
+        KeyCompare::Owned(NotNullOwned::new(key))
+    }
+    fn as_qref(&self) -> QRef<K, Q> {
+        match self {
+            &KeyCompare::Owned(ref owned) => QRef::Owned(owned),
+            &KeyCompare::Shared(ref not_null) => QRef::Shared(not_null),
+            &KeyCompare::OnlyCompare(q) => QRef::Borrow(q),
+        }
+    }
+}
+
+enum QRef<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
+    Owned(&'k NotNullOwned<K>),
+    Shared(&'k KeySlot<K>),
+    Borrow(&'q Q),
+}
+
+impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> QRef<'k, 'q, K, Q> {
+    fn as_qref2(&self) -> QRef2<K, Q> {
+        match self {
+            &QRef::Owned(not_null) => QRef2::Shared(&**not_null),
+            &QRef::Shared(&KeySlot::Key(ref k)) => QRef2::Shared(k),
+            &QRef::Shared(&KeySlot::SeeNewTable) =>
+                unreachable!("KeyCompare must contain a `NotNull(KeySlot::Key(K))`"),
+            &QRef::Borrow(q) => QRef2::Borrow(q),
+        }
+    }
+}
+
+enum QRef2<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
+    Shared(&'k K),
+    Borrow(&'q Q),
+}
+
+impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> QRef2<'k, 'q, K, Q> {
+    fn as_q(&self) -> &Q {
+        match self {
+            &QRef2::Shared(k) => k.borrow(),
+            &QRef2::Borrow(q) => q,
+        }
+    }
+}
+
 /// This enum represents the value to insert when calling `put_if_match()`.
 #[derive(Debug)]
 pub enum PutValue<'a, V: 'a> {
@@ -152,7 +203,7 @@ pub struct MapInner<'map, K, V: 'map, S = RandomState> {
 }
 
 
-impl<'map, K: Hash + Eq + Clone, V> MapInner<'map,K,V,RandomState> {
+impl<'map, K: Hash + Eq, V> MapInner<'map,K,V,RandomState> {
     /// Creates a new `MapInner`. Uses the next power of two if size is not a power of two.
     pub fn with_capacity(size: usize) -> Self {
         MapInner::with_capacity_and_hasher(size, RandomState::new())
@@ -161,7 +212,7 @@ impl<'map, K: Hash + Eq + Clone, V> MapInner<'map,K,V,RandomState> {
 
 /// `Clone` is required on `K` because of `put_if_match()`.
 impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
-    where K: Hash + Eq + Clone,
+    where K: Hash + Eq,
           S: BuildHasher + Clone,
 {
     /// The default size of a new `LockFreeHashMap` when created by `MapInner::with_capacity()`.
@@ -317,7 +368,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
         }
         let (ref atomic_key_slot, ref atomic_value_slot) = self.map[old_map_index];
         let old_key_shared = MaybeNull::from_shared(Shared::null());
-        let old_key: &K;
+        let old_key: NotNull<_>;
         let mut new_key = NotNullOwned::new(KeySlot::SeeNewTable);
         // Preemptively set an empty key slot to `SeeNewTable`.
         loop {
@@ -335,10 +386,10 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                     // null. Thus, just retry with `continue` if it's still null.
                     match current.as_option() {
                         None => continue,
-                        Some(_k) => {
-                            match _k.deref() {
+                        Some(k) => {
+                            match k.deref() {
                                 &KeySlot::SeeNewTable => return,
-                                &KeySlot::Key(ref k) => {
+                                &KeySlot::Key(_) => {
                                     debug_assert!(current.as_option().is_some());
                                     old_key = k;
                                     break;
@@ -401,6 +452,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                             },
                             Ok(shared_primed_value) => {
                                 original_valueslot_value = Some(not_null);
+                                atomic_key_slot.set_should_deallocate(guard);
                                 debug_assert!(!shared_primed_value.is_tombstone());
                                 shared_primed_value
                             },
@@ -422,7 +474,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                 // We copied the key/value pair into the new map if the previous value associated
                 // with the key `is_none()`.
                 let copied_into_new = new_map.put_if_match(
-                    Cow::Borrowed(old_key),
+                    KeyCompare::Shared(old_key),
                     put_value,
                     Match::Empty,
                     outer_map,
@@ -430,6 +482,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                 ).is_none();
                 if copied_into_new {
                     atomic_value_slot.set_should_deallocate(guard);
+                    atomic_key_slot.set_should_not_deallocate(guard);
                 }
             }
             let mut primed_old_value_maybe: MaybeNull<_> = primed_old_value.as_maybe_null();
@@ -620,23 +673,24 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
 
     pub fn put_if_match<Q>(
         &'guard self,
-        key: Cow<Q>,
+        key: KeyCompare<K, Q>,
         mut put: PutValue<'map, V>,
         matcher: Match,
         outer_map: &AtomicBox<Self>,
         guard: &'guard Guard
     ) -> Option<&'guard ValueSlot<V>>
         where K: Borrow<Q>,
-              Q: ToOwned<Owned = K> + Hash + Eq + PartialEq<K> + ?Sized,
+              Q: Hash + Eq + PartialEq<K> + ?Sized,
     {
         fn cheat_lifetime<'guard, 'map, V>(maybe: NotNull<'guard, V>) -> NotNull<'map, V> {
             MaybeNull::from_shared(Shared::from(maybe.as_shared().as_raw()))
                 .as_option()
                 .expect("parameter was `NotNull` to begin with")
         }
-        let initial_index = self.hash_key(&key);
+        let initial_index = self.hash_key(key.as_qref().as_qref2().as_q());
         let len = self.capacity();
         let mut key_index = None;
+        let mut key = key;
         'find_key_loop:
         for index in (initial_index..len).chain(0..initial_index) {
             let atomic_key_slot: &AtomicPtr<KeySlot<K>> = &self.map[index].0;
@@ -651,26 +705,47 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                     // The key is not taken, so we don't put a Tombstone value here
                     return None;
                 } else {
-                    // We need to clone here, because otherwise if we break out of the loop on an
-                    // `Ok` value, then key is moved into the map and can't be moved into any newer
-                    // map when we call `newer_map.put_if_match(...)` outside this loop.
-                    match atomic_key_slot.compare_null_and_set_owned(
-                        NotNullOwned::new(KeySlot::Key(key.clone().into_owned())),
-                        guard
-                    ) {
-                        Ok(_) => {
-                            // TODO: Raise keyslots-used count
-                            key_index = Some(index);
-                            break 'find_key_loop;
+                    match key {
+                        KeyCompare::Owned(owned) => {
+                            let insert_key = NotNullOwned::new(KeySlot::Key(*owned.into_owned().into_box()));
+                            match atomic_key_slot.compare_null_and_set_owned(insert_key, guard) {
+                                Ok(shared_key) => {
+                                    // TODO: Raise keyslots-used count
+                                    key = KeyCompare::Shared(shared_key);
+                                    key_index = Some(index);
+                                    break 'find_key_loop;
+                                },
+                                Err((not_null, _return)) => {
+                                    let _return = match *_return.into_owned().into_box() {
+                                        KeySlot::Key(owned) => owned,
+                                        KeySlot::SeeNewTable => unreachable!(),
+                                    };
+                                    key = KeyCompare::Owned(NotNullOwned::new(_return));
+                                    not_null
+                                },
+                            }
                         },
-                        Err((not_null, _)) => {
-                            not_null
+                        KeyCompare::Shared(not_null) => {
+                            match atomic_key_slot.compare_null_and_set(not_null, guard) {
+                                Ok(shared_key) => {
+                                    key = KeyCompare::Shared(shared_key);
+                                    key_index = Some(index);
+                                    break 'find_key_loop;
+                                },
+                                Err((not_null, _return)) => {
+                                    key = KeyCompare::Shared(_return);
+                                    not_null
+                                }
+                            }
                         },
+                        KeyCompare::OnlyCompare(_) => {
+                            return None;
+                        }
                     }
                 },
             };
             match &*current_key {
-                &KeySlot::Key(ref current_key) => if self.keys_are_equal(&*key, current_key.borrow()) {
+                &KeySlot::Key(ref current_key) => if self.keys_are_equal(key.as_qref().as_qref2().as_q(), current_key.borrow()) {
                     key_index = Some(index);
                     break 'find_key_loop;
                 }, // else continue
@@ -770,7 +845,9 @@ impl<'map, K, V, S> Drop for MapInner<'map, K, V, S> {
         for (mut k_ptr, mut v_ptr) in self.map.drain(..) {
             unsafe {
                 guard.defer(move || {
-                    k_ptr.try_drop(&guard);
+                    if k_ptr.should_deallocate(&guard) {
+                        k_ptr.try_drop(&guard);
+                    }
                     v_ptr.try_drop(&guard);
                 })
             }
