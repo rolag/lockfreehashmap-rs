@@ -86,7 +86,7 @@ impl<T> NotNullOwned<T> {
 
 impl<T: fmt::Debug> fmt::Debug for NotNullOwned<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({:?}) -> {:?}", self.0.deref() as *const _, self.deref())
+        write!(f, "{:?}", self.deref())
     }
 }
 
@@ -135,7 +135,7 @@ impl<'a, T> MaybeNull<'a, T> {
 impl<'a, T: fmt::Debug> fmt::Debug for MaybeNull<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.as_option() {
-            Some(not_null) => write!(f, "({:?}) -> {:?}", not_null.as_shared().as_raw(), not_null.deref()),
+            Some(not_null) => write!(f, "{:?}", not_null.deref()),
             None => write!(f, "(Null)"),
         }
     }
