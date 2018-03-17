@@ -39,13 +39,6 @@ impl<'a, T> NotNull<'a, T> {
         debug_assert!(!self.0.is_null());
         unsafe { self.0.deref() }
     }
-    pub unsafe fn defer_drop(self, guard: &Guard) {
-        guard.defer(move || {
-            let shared = self.0;
-            debug_assert!(!shared.is_null());
-            drop(shared.into_owned());
-        })
-    }
     pub unsafe fn drop(self) {
         let shared = self.0;
         debug_assert!(!shared.is_null());
