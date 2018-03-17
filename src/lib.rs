@@ -215,7 +215,6 @@ mod test {
     #[test]
     fn test_single_thread() {
         for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 31, 32, 33].iter() {
-            println!("{}", i);
             test_single_thread_insert(*i);
         }
         test_single_thread_insert(256);
