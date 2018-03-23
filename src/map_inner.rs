@@ -84,26 +84,6 @@ pub enum Match {
     Always,
 }
 
-impl Match {
-    fn matches_with_key<K>(&self, _key: Option<NotNull<KeySlot<K>>>) -> bool {
-        true
-    }
-    fn matches_with_value<V>(&self, value: Option<NotNull<ValueSlot<V>>>) -> bool {
-        match *self {
-            Match::Empty => value.is_none(),
-            Match::AnyKeyValuePair => if let Some(value) = value {
-                match &*value {
-                    &ValueSlot::Tombstone | &ValueSlot::TombstonePrime => false,
-                    _ => true,
-                }
-            } else {
-                false
-            }
-            Match::Always => true,
-        }
-    }
-}
-
 pub enum KeyCompare<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
     Owned(NotNullOwned<K>),
     Shared(NotNull<'k, KeySlot<K>>),
@@ -699,9 +679,6 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
             let atomic_key_slot: &AtomicPtr<KeySlot<K>> = &self.map[index].0;
             let option_key: Option<_> = atomic_key_slot.load(&guard)
                 .as_option();
-            if !matcher.matches_with_key(option_key) {
-                return None;
-            }
             let current_key: NotNull<KeySlot<K>> = match option_key {
                 Some(existing_key) => existing_key,
                 None => if put.is_tombstone() {
@@ -784,8 +761,19 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
 
         let insert_tombstone = put.is_tombstone();
         loop {
-            if !matcher.matches_with_value(old_value_slot.as_option()) {
-                return None;
+            let value_slot_option = old_value_slot.as_option();
+            match matcher {
+                Match::Empty => if let Some(v) = value_slot_option {
+                    return Some(v.deref())
+                },
+                Match::AnyKeyValuePair => match value_slot_option.map(|v| v.deref()) {
+                    Some(&ValueSlot::Tombstone)
+                    | Some(&ValueSlot::TombstonePrime)
+                    | None
+                        => return None,
+                    _ => (),
+                }
+                Match::Always => (),
             }
             let current_value_slot: MaybeNull<_> = match put {
                 PutValue::Owned(owned) => match atomic_value_slot.compare_and_set_owned(
