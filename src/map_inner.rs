@@ -202,9 +202,6 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
     where K: Hash + Eq,
           S: BuildHasher + Clone,
 {
-    /// The default size of a new `LockFreeHashMap` when created by `MapInner::with_capacity()`.
-    pub const DEFAULT_CAPACITY: usize = 8;
-
     pub fn with_capacity_and_hasher(size: usize, hasher: S) -> Self {
         let size = usize::checked_next_power_of_two(size).unwrap_or(Self::DEFAULT_CAPACITY);
         let mut map = Vec::with_capacity(size);
@@ -829,6 +826,9 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
 }
 
 impl<'v, K, V, S> MapInner<'v, K, V, S> {
+    /// The default size of a new `LockFreeHashMap` when created by `MapInner::with_capacity()`.
+    pub const DEFAULT_CAPACITY: usize = ::LockFreeHashMap::<K, V, S>::DEFAULT_CAPACITY;
+
     pub unsafe fn drop_newer_maps(&self, guard: &Guard) {
         if let Some(newer_map) = self.newer_map.take(guard) {
             newer_map.drop_self_and_newer_maps(guard);

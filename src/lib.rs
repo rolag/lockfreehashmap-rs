@@ -26,7 +26,6 @@
 
 extern crate crossbeam;
 
-use crossbeam::epoch::Guard;
 use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::fmt;
@@ -35,7 +34,11 @@ use std::hash::Hash;
 mod atomic;
 mod map_inner;
 
-pub use crossbeam::epoch::pin;
+/// Re-export `crossbeam::epoch::pin()` and its return type for convenience.
+pub use crossbeam::epoch::{pin, Guard};
+/// Re-export `crossbeam::scope()` and its return type for convenience.
+pub use crossbeam::{scope, Scope};
+
 use atomic::AtomicBox;
 use map_inner::{KeyCompare, MapInner, Match, PutValue, ValueSlot};
 
@@ -46,44 +49,91 @@ pub struct LockFreeHashMap<'v, K, V: 'v, S = RandomState> {
     inner: AtomicBox<MapInner<'v,K,V,S>>,
 }
 
+impl<'v, K, V, S> LockFreeHashMap<'v,K,V,S> {
+    /// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.
+    pub const DEFAULT_CAPACITY: usize = 8;
+}
+
 impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
 
-    /// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.
-    pub const DEFAULT_CAPACITY: usize = MapInner::<K,V>::DEFAULT_CAPACITY;
-
     /// Creates a new `LockFreeHashMap`.
+    ///
+    /// # Examples
+    /// ```
+    /// # #![allow(unused_variables)]
+    /// # use lockfreehashmap::LockFreeHashMap;
+    /// let map = LockFreeHashMap::<u32, String>::new();
+    /// ```
     pub fn new() -> Self {
         Self::with_capacity(Self::DEFAULT_CAPACITY)
     }
 
     /// Creates a new `LockFreeHashMap` of a given size. Uses the next power of two if size is not
     /// a power of two.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::LockFreeHashMap;
+    /// let map = LockFreeHashMap::<u32, String>::with_capacity(12);
+    /// assert_eq!(map.capacity(), 12usize.next_power_of_two());
+    /// assert_eq!(map.capacity(), 16);
+    /// ```
     pub fn with_capacity(size: usize) -> Self {
         LockFreeHashMap { inner: AtomicBox::new(MapInner::with_capacity(size)) }
     }
 
     /// Returns the number of elements the map can hold without reallocating.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::LockFreeHashMap;
+    /// let map = LockFreeHashMap::<u32, String>::with_capacity(8);
+    /// assert_eq!(map.capacity(), 8);
+    /// ```
     pub fn capacity(&self) -> usize {
         let guard = crossbeam::epoch::pin();
         self.load_inner(&guard).capacity()
     }
 
     /// Returns the number of elements in the map.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<u32, String>::with_capacity(8);
+    /// assert_eq!(map.capacity(), 8);
+    /// assert_eq!(map.len(), 0);
+    /// let guard = lockfreehashmap::pin();
+    /// map.insert(5, String::from("five"), &guard);
+    /// assert_eq!(map.capacity(), 8);
+    /// assert_eq!(map.len(), 1);
+    /// ```
     pub fn len(&self) -> usize {
         let guard = crossbeam::epoch::pin();
         self.load_inner(&guard).len()
     }
-
-    // keys, values, entry
 
     /// Clears the map, removing all key-value pairs. Keeps the allocated memory for reuse.
     pub fn clear(&self) {
         unimplemented!()
     }
 
-    /// Returns true if the map contains a value for the specified key. The key may be any
-    /// borrowed form of the map's key type, but Hash and Eq on the borrowed form must match those
-    /// for the key type.
+    /// Returns true if the map contains a value for the specified key.
+    ///
+    /// The key may be any borrowed form of the map's key type, but Hash and Eq on the borrowed
+    /// form must match those for the key type.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<i32, i32>::new();
+    /// assert!(!map.contains_key(&3));
+    /// let guard = lockfreehashmap::pin();
+    /// map.insert(3, 8934, &guard);
+    /// assert!(map.contains_key(&3));
+    /// map.remove(&3, &guard);
+    /// assert!(!map.contains_key(&3));
+    /// ```
     pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
@@ -92,6 +142,7 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
         self.get(key, &guard).is_some()
     }
 
+    /// Private helper method to load the `inner` field as a &[MapInner].
     fn load_inner(&self, guard: &'guard Guard) -> &'guard MapInner<'v,K,V> {
         self.inner.load(&guard).deref()
     }
@@ -99,6 +150,16 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
     /// Returns a reference to the value corresponding to the key. The key may be any borrowed
     /// form of the map's key type, but Hash and Eq on the borrowed form must match those for the
     /// key type.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<i32, i32>::new();
+    /// let guard = lockfreehashmap::pin();
+    /// assert_eq!(map.get(&1, &guard), None);
+    /// map.insert(1, 15, &guard);
+    /// assert_eq!(map.get(&1, &guard), Some(&15));
+    /// ```
     pub fn get<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
@@ -110,6 +171,20 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
     /// returned. If the map did have this key present, the value is updated, and the old value is
     /// returned. The key is not updated, though; this matters for types that can be `==` without
     /// being identical.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<String, String>::new();
+    /// let guard = lockfreehashmap::pin();
+    /// let key = "key".to_string();
+    /// let equal_key = "key".to_string();
+    /// assert_eq!(key, equal_key); // The keys are equal
+    /// assert_ne!(&key as *const _, &equal_key as *const _); // But not identical
+    /// assert_eq!(map.insert(key, "value".to_string(), &guard), None);
+    /// assert_eq!(map.insert(equal_key, "other".to_string(), &guard), Some(&"value".to_string()));
+    /// // `map` now contains `key` as its key, rather than `equal_key`.
+    /// ```
     pub fn insert(&self, key: K, value: V, guard: &'guard Guard) -> Option<&'guard V>
     {
         let value_slot: Option<&ValueSlot<V>> = self.load_inner(guard).put_if_match(
@@ -127,13 +202,24 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
     /// returned. If the map did have this key present, the value is updated, and the old value is
     /// returned. The key is not updated, though; this matters for types that can be `==` without
     /// being identical.
-    pub fn replace<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<i32, i32>::new();
+    /// let guard = lockfreehashmap::pin();
+    /// assert_eq!(map.replace(&1, 1, &guard), None);
+    /// assert_eq!(map.replace(&1, 1, &guard), None);
+    /// assert_eq!(map.insert(1, 1, &guard), None);
+    /// assert_eq!(map.replace(&1, 3, &guard), Some(&1));
+    /// ```
+    pub fn replace<Q: ?Sized>(&self, key: &Q, value: V, guard: &'guard Guard) -> Option<&'guard V>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
     {
         let value_slot: Option<&ValueSlot<V>> = self.load_inner(guard).put_if_match(
             KeyCompare::OnlyCompare(key),
-            PutValue::new_tombstone(),
+            PutValue::new(value),
             Match::AnyKeyValuePair,
             &self.inner,
             &guard
@@ -144,6 +230,16 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
     /// Removes a key from the map, returning the value at the key if the key was previously in the
     /// map. The key may be any borrowed form of the map's key type, but Hash and Eq on the
     /// borrowed form must match those for the key type.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<i32, i32>::new();
+    /// let guard = lockfreehashmap::pin();
+    /// assert_eq!(map.remove(&1, &guard), None);
+    /// map.insert(1, 1, &guard);
+    /// assert_eq!(map.remove(&1, &guard), Some(&1));
+    /// ```
     pub fn remove<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
