@@ -292,10 +292,10 @@ mod test {
 
     #[test]
     fn test_heavy_usage() {
-        const NUMBER_OF_KEYS: usize = 1000;
+        const NUMBER_OF_KEYS: usize = 100;
         const NUMBER_OF_VALUES_PER_KEY: usize = 5;
         const NUMBER_OF_THREADS: usize = 30;
-        const NUMBER_OF_OPERATIONS_PER_THREAD: usize = 5000;
+        const NUMBER_OF_OPERATIONS_PER_THREAD: usize = 1000;
         let mut valid_states: Vec<(Box<u32>, Vec<Box<u32>>)> = Vec::new();
         let mut rng = rand::thread_rng();
         for _ in 0..NUMBER_OF_KEYS {
@@ -304,6 +304,7 @@ mod test {
             for _ in 0..NUMBER_OF_VALUES_PER_KEY {
                 valid_values.push(Box::new(rng.gen()));
             }
+            valid_values.sort();
             valid_states.push((key, valid_values));
         }
         let valid_states = &valid_states;
@@ -323,17 +324,17 @@ mod test {
                                 valid_states[key].1[value].clone(),
                                 &guard)
                             {
-                                assert!(valid_states[key].1.contains(previous));
+                                assert!(valid_states[key].1.binary_search(previous).is_ok());
                             },
                             (1, key, _) => if let Some(previous) = map.remove(
                                 &valid_states[key].0, &guard)
                             {
-                                assert!(valid_states[key].1.contains(previous));
+                                assert!(valid_states[key].1.binary_search(previous).is_ok());
                             },
                             (2, key, _) => if let Some(get) = map.get(
                                 &valid_states[key].0, &guard)
                             {
-                                assert!(valid_states[key].1.contains(get));
+                                assert!(valid_states[key].1.binary_search(get).is_ok());
                             },
                             _ => unreachable!(),
                         }
