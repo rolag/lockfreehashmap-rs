@@ -452,7 +452,6 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                             },
                             Ok(shared_primed_value) => {
                                 original_valueslot_value = Some(not_null);
-                                atomic_key_slot.set_should_deallocate(guard);
                                 debug_assert!(!shared_primed_value.is_tombstone());
                                 shared_primed_value
                             },
@@ -481,8 +480,12 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                     guard
                 ).is_none();
                 if copied_into_new {
-                    atomic_value_slot.set_should_deallocate(guard);
-                    atomic_key_slot.set_should_not_deallocate(guard);
+                    debug_assert!(!atomic_key_slot.is_tagged(guard));
+                    debug_assert!(!atomic_value_slot.is_tagged(guard));
+                    atomic_key_slot.tag(guard);
+                    atomic_value_slot.tag(guard);
+                    debug_assert!(atomic_key_slot.is_tagged(guard));
+                    debug_assert!(atomic_value_slot.is_tagged(guard));
                 }
             }
             let mut primed_old_value_maybe: MaybeNull<_> = primed_old_value.as_maybe_null();
@@ -499,7 +502,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
             }
             if let Some(original_value) = original_valueslot_value {
                 unsafe { guard.defer(move || {
-                    if atomic_value_slot.should_deallocate(guard) {
+                    if atomic_value_slot.is_tagged(guard) {
                         original_value.drop();
                     }
                 })}
@@ -845,7 +848,7 @@ impl<'map, K, V, S> Drop for MapInner<'map, K, V, S> {
         for (mut k_ptr, mut v_ptr) in self.map.drain(..) {
             unsafe {
                 guard.defer(move || {
-                    if k_ptr.should_deallocate(&guard) {
+                    if !k_ptr.is_tagged(&guard) {
                         k_ptr.try_drop(&guard);
                     }
                     v_ptr.try_drop(&guard);

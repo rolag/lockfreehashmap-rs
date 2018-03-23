@@ -210,15 +210,11 @@ impl<T> AtomicPtr<T> {
             .map_err(|e| (MaybeNull(e.current), NotNullOwned(e.new)))
     }
 
-    pub fn set_should_deallocate<'g>(&self, guard: &'g Guard) {
+    pub fn tag<'g>(&self, guard: &'g Guard) {
         self.0.fetch_or(1, ORDERING, guard);
     }
 
-    pub fn set_should_not_deallocate<'g>(&self, guard: &'g Guard) {
-        self.0.fetch_and(0, ORDERING, guard);
-    }
-
-    pub fn should_deallocate<'g>(&self, guard: &'g Guard) -> bool {
+    pub fn is_tagged<'g>(&self, guard: &'g Guard) -> bool {
         self.0.fetch_or(0, ORDERING, guard).tag() == 1
     }
 
