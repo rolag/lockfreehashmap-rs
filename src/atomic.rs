@@ -22,16 +22,16 @@ use std::sync::atomic::Ordering;
 
 pub const ORDERING: Ordering = Ordering::SeqCst;
 
-pub struct NotNull<'a, T: 'a>(Shared<'a, T>);
+pub struct NotNull<'t, T: 't>(Shared<'t, T>);
 
-impl<'a, T> NotNull<'a, T> {
-    pub fn as_maybe_null(&self) -> MaybeNull<'a, T> {
+impl<'t, T> NotNull<'t, T> {
+    pub fn as_maybe_null(&self) -> MaybeNull<'t, T> {
         MaybeNull(self.0)
     }
-    pub fn as_shared(&self) -> Shared<'a, T> {
+    pub fn as_shared(&self) -> Shared<'t, T> {
         self.0
     }
-    pub fn deref(&self) -> &'a T {
+    pub fn deref(&self) -> &'t T {
         // This is safe because
         // 1) This type is only created in situations it's guaranteed not to be null
         // 2) This type only created from types in this module, which never uses
@@ -46,20 +46,20 @@ impl<'a, T> NotNull<'a, T> {
     }
 }
 
-impl<'a, T: fmt::Debug> fmt::Debug for NotNull<'a, T> {
+impl<'t, T: fmt::Debug> fmt::Debug for NotNull<'t, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.as_maybe_null())
     }
 }
 
-impl<'a, T> Clone for NotNull<'a, T> {
+impl<'t, T> Clone for NotNull<'t, T> {
     fn clone<'b>(&'b self) -> Self {
         NotNull(self.0)
     }
 }
-impl<'a, T> Copy for NotNull<'a, T> { }
+impl<'t, T> Copy for NotNull<'t, T> { }
 
-impl<'a, T> Deref for NotNull<'a, T> {
+impl<'t, T> Deref for NotNull<'t, T> {
     type Target = T;
     fn deref(&self) -> &T {
         self.deref()
@@ -93,24 +93,24 @@ impl<T> Deref for NotNullOwned<T> {
 }
 
 
-pub struct MaybeNull<'a, T: 'a>(Shared<'a, T>);
+pub struct MaybeNull<'t, T: 't>(Shared<'t, T>);
 
-impl<'a, T> Clone for MaybeNull<'a, T> {
+impl<'t, T> Clone for MaybeNull<'t, T> {
     fn clone<'b>(&'b self) -> Self {
         MaybeNull(self.0)
     }
 }
-impl<'a, T> Copy for MaybeNull<'a, T> { }
+impl<'t, T> Copy for MaybeNull<'t, T> { }
 
 
-impl<'a, T> MaybeNull<'a, T> {
-    pub fn from_shared(shared: Shared<'a, T>) -> Self {
+impl<'t, T> MaybeNull<'t, T> {
+    pub fn from_shared(shared: Shared<'t, T>) -> Self {
         MaybeNull(shared)
     }
     pub fn as_shared(&self) -> Shared<T> {
         self.0
     }
-    pub fn as_option(&self) -> Option<NotNull<'a, T>> {
+    pub fn as_option(&self) -> Option<NotNull<'t, T>> {
         match self.0.is_null() {
             true => None,
             false => Some(NotNull(self.0)),
@@ -125,7 +125,7 @@ impl<'a, T> MaybeNull<'a, T> {
     }
 }
 
-impl<'a, T: fmt::Debug> fmt::Debug for MaybeNull<'a, T> {
+impl<'t, T: fmt::Debug> fmt::Debug for MaybeNull<'t, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.as_option() {
             Some(not_null) => write!(f, "{:?}", not_null.deref()),

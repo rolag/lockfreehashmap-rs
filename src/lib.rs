@@ -41,12 +41,12 @@ use map_inner::{KeyCompare, MapInner, Match, PutValue, ValueSlot};
 
 pub const COPY_CHUNK_SIZE: usize = 32;
 
-pub struct LockFreeHashMap<'map, K, V: 'map, S = RandomState> {
+pub struct LockFreeHashMap<'v, K, V: 'v, S = RandomState> {
     /// Points to the newest map (after it's been fully resized). Always non-null.
-    inner: AtomicBox<MapInner<'map,K,V,S>>,
+    inner: AtomicBox<MapInner<'v,K,V,S>>,
 }
 
-impl<'guard, 'map: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'map,K,V> {
+impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
 
     /// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.
     pub const DEFAULT_CAPACITY: usize = MapInner::<K,V>::DEFAULT_CAPACITY;
@@ -92,7 +92,7 @@ impl<'guard, 'map: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'map,K,V> {
         self.get(key, &guard).is_some()
     }
 
-    fn load_inner(&self, guard: &'guard Guard) -> &'guard MapInner<'map,K,V> {
+    fn load_inner(&self, guard: &'guard Guard) -> &'guard MapInner<'v,K,V> {
         self.inner.load(&guard).deref()
     }
 
@@ -160,7 +160,7 @@ impl<'guard, 'map: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'map,K,V> {
 }
 
 
-impl<'map, K, V, S> Drop for LockFreeHashMap<'map, K, V, S> {
+impl<'v, K, V, S> Drop for LockFreeHashMap<'v, K, V, S> {
     fn drop(&mut self) {
         let guard = crossbeam::epoch::pin();
         unsafe {
@@ -169,8 +169,8 @@ impl<'map, K, V, S> Drop for LockFreeHashMap<'map, K, V, S> {
     }
 }
 
-impl<'guard, 'map: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug>
-    fmt::Debug for LockFreeHashMap<'map,K,V>
+impl<'guard, 'v: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug>
+    fmt::Debug for LockFreeHashMap<'v,K,V>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let guard = crossbeam::epoch::pin();

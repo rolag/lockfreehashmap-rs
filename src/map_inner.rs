@@ -36,20 +36,20 @@ pub enum KeySlot<K> {
 }
 
 #[derive(Debug)]
-pub enum ValueSlot<'a, V: 'a> {
+pub enum ValueSlot<'v, V: 'v> {
     /// Value insert into table.
     Value(V),
     /// Slot used to contain a `Value` but was deleted from the map.
     Tombstone,
     /// Value was inserted into a previous smaller table that needed to be resized and was copied
     /// directly into a newer table.
-    ValuePrime(&'a ValueSlot<'a, V>),
+    ValuePrime(&'v ValueSlot<'v, V>),
     /// Value was a `Tombstone` in a previous smaller table that needed to be resized and was
     /// copied directly into a newer table.
     TombstonePrime,
 }
 
-impl<'a, V> ValueSlot<'a, V> {
+impl<'v, V> ValueSlot<'v, V> {
     pub fn is_tombstone(&self) -> bool {
         match self {
             &ValueSlot::Tombstone => true,
@@ -144,12 +144,12 @@ impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> QRef2<'k, 'q, K, Q> {
 
 /// This enum represents the value to insert when calling `put_if_match()`.
 #[derive(Debug)]
-pub enum PutValue<'a, V: 'a> {
-    Owned(NotNullOwned<ValueSlot<'a, V>>),
-    Shared(NotNull<'a, ValueSlot<'a, V>>),
+pub enum PutValue<'v, V: 'v> {
+    Owned(NotNullOwned<ValueSlot<'v, V>>),
+    Shared(NotNull<'v, ValueSlot<'v, V>>),
 }
 
-impl<'a, V> PutValue<'a, V> {
+impl<'v, V> PutValue<'v, V> {
     pub fn new(value: V) -> Self {
         PutValue::Owned(NotNullOwned::new(ValueSlot::Value(value)))
     }
@@ -178,19 +178,19 @@ impl<'a, V> PutValue<'a, V> {
 /// resized, a new `MapInner` must be created and its Key/Value pairs must be copied from this one.
 /// Logically, this struct owns its keys and values, and so is responsible for freeing them when
 /// dropped.
-pub struct MapInner<'map, K, V: 'map, S = RandomState> {
-    map: Vec<(AtomicPtr<KeySlot<K>>, AtomicPtr<ValueSlot<'map, V>>)>,
+pub struct MapInner<'v, K, V: 'v, S = RandomState> {
+    map: Vec<(AtomicPtr<KeySlot<K>>, AtomicPtr<ValueSlot<'v, V>>)>,
     /// The amount of key/value pairs in the array, if any.
     size: AtomicUsize,
     /// Points to the newer map or null if none.
-    newer_map: AtomicPtr<MapInner<'map,K,V,S>>,
+    newer_map: AtomicPtr<MapInner<'v,K,V,S>>,
     resizers_count: AtomicUsize,
     chunks_copied: AtomicUsize,
     hash_builder: S,
 }
 
 
-impl<'map, K: Hash + Eq, V> MapInner<'map,K,V,RandomState> {
+impl<'v, K: Hash + Eq, V> MapInner<'v,K,V,RandomState> {
     /// Creates a new `MapInner`. Uses the next power of two if size is not a power of two.
     pub fn with_capacity(size: usize) -> Self {
         MapInner::with_capacity_and_hasher(size, RandomState::new())
@@ -198,7 +198,7 @@ impl<'map, K: Hash + Eq, V> MapInner<'map,K,V,RandomState> {
 }
 
 /// `Clone` is required on `K` because of `put_if_match()`.
-impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
+impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
     where K: Hash + Eq,
           S: BuildHasher + Clone,
 {
@@ -350,7 +350,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
         outer_map: &AtomicBox<Self>,
         guard: &'guard Guard
     ) {
-        fn cheat_lifetime<'guard, 'map, V>(maybe: MaybeNull<'guard, V>) -> MaybeNull<'map, V> {
+        fn cheat_lifetime<'guard, 'v, V>(maybe: MaybeNull<'guard, V>) -> MaybeNull<'v, V> {
             MaybeNull::from_shared(Shared::from(maybe.as_shared().as_raw()))
         }
         let (ref atomic_key_slot, ref atomic_value_slot) = self.map[old_map_index];
@@ -529,7 +529,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
             }
         }
         let array_element_byte_size: usize
-            = ::std::mem::size_of::<(AtomicPtr<KeySlot<K>>, AtomicPtr<ValueSlot<'map, V>>)>();
+            = ::std::mem::size_of::<(AtomicPtr<KeySlot<K>>, AtomicPtr<ValueSlot<'v, V>>)>();
         // This doesn't need to be accurate, so it can be wrapping to ensure it never panics.
         let Wrapping(size_in_megabytes)
             = (Wrapping(array_element_byte_size) * Wrapping(size)) >> (2^10 * 2^10);
@@ -671,7 +671,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
     pub fn put_if_match<Q>(
         &'guard self,
         key: KeyCompare<K, Q>,
-        mut put: PutValue<'map, V>,
+        mut put: PutValue<'v, V>,
         matcher: Match,
         outer_map: &AtomicBox<Self>,
         guard: &'guard Guard
@@ -679,7 +679,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K> + ?Sized,
     {
-        fn cheat_lifetime<'guard, 'map, V>(maybe: NotNull<'guard, V>) -> NotNull<'map, V> {
+        fn cheat_lifetime<'guard, 'v, V>(maybe: NotNull<'guard, V>) -> NotNull<'v, V> {
             MaybeNull::from_shared(Shared::from(maybe.as_shared().as_raw()))
                 .as_option()
                 .expect("parameter was `NotNull` to begin with")
@@ -828,7 +828,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
     }
 }
 
-impl<'map, K, V, S> MapInner<'map, K, V, S> {
+impl<'v, K, V, S> MapInner<'v, K, V, S> {
     pub unsafe fn drop_newer_maps(&self, guard: &Guard) {
         if let Some(newer_map) = self.newer_map.take(guard) {
             newer_map.drop_self_and_newer_maps(guard);
@@ -844,7 +844,7 @@ impl<'map, K, V, S> MapInner<'map, K, V, S> {
     }
 }
 
-impl<'map, K, V, S> Drop for MapInner<'map, K, V, S> {
+impl<'v, K, V, S> Drop for MapInner<'v, K, V, S> {
     fn drop(&mut self) {
         let guard = &crossbeam::epoch::pin();
         for (mut k_ptr, mut v_ptr) in self.map.drain(..) {
@@ -861,7 +861,7 @@ impl<'map, K, V, S> Drop for MapInner<'map, K, V, S> {
     }
 }
 
-impl<'map, K: fmt::Debug, V: fmt::Debug, S> fmt::Debug for MapInner<'map, K, V, S> {
+impl<'v, K: fmt::Debug, V: fmt::Debug, S> fmt::Debug for MapInner<'v, K, V, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let guard = &crossbeam::epoch::pin();
         write!(f, "MapInner {{ map: {:?}, size: {:?}, capacity: {}, newer_map: {:?}, resizers: {:?}, chunks_copied: {:?} }}",
