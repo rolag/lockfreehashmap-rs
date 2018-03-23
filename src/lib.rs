@@ -15,6 +15,25 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //! LockFreeHashMap
+//!
+//! This is an implementation of the lock-free hash map created by Dr. Cliff Click.
+//!
+//! Originally, this implementation
+//! [here](https://github.com/boundary/high-scale-lib/blob/master/src/main/java/org/cliffc/high_scale_lib/NonBlockingHashMap.java)
+//! and
+//! [recently here](https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/maps/NonBlockingHashMap.java#L770-L770)
+//! was created for Java, using garbage collection where necessary.
+//! This library is a Rust implementation, using epoch-based memory management to compensate for
+//! the lack of garbage collection.
+//! The `crossbeam` crate is used for epoch-based memory management.
+//!
+//! For details on the hash map's design and implementation, see the (private) [map_inner] module.
+//!
+//! At the time of writing, other concurrent hash maps available don't appear to allow reading and
+//! writing at the same time. This map does.
+//! Effectively, this map has the same guarantees as having a certain amount of global variables
+//! that can be changed atomically.
+
 
 // NOTE: To use valgrind, uncomment the lines below and recompile.
 // NOTE: Then `valgrind --leak-check=full --show-leak-kinds=all ./target/debug/deps/lockfreehashmap-***`
@@ -54,7 +73,7 @@ impl<'v, K, V, S> LockFreeHashMap<'v,K,V,S> {
     pub const DEFAULT_CAPACITY: usize = 8;
 }
 
-impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
+impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v,K,V> {
 
     /// Creates a new `LockFreeHashMap`.
     ///
@@ -259,13 +278,15 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V> LockFreeHashMap<'v,K,V> {
 impl<'v, K, V, S> Drop for LockFreeHashMap<'v, K, V, S> {
     fn drop(&mut self) {
         let guard = crossbeam::epoch::pin();
+        // self.inner will be dropped because Drop is implemented on `AtomicBox`
+        // But if self.inner has pointers to newer maps, then those need to be explicitely dropped.
         unsafe {
             self.inner.load(&guard).deref().drop_newer_maps(&guard);
         }
     }
 }
 
-impl<'guard, 'v: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug>
+impl<'guard, 'v: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug + PartialEq>
     fmt::Debug for LockFreeHashMap<'v,K,V>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
