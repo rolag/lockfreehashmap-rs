@@ -57,6 +57,13 @@ impl<'a, V> ValueSlot<'a, V> {
         }
     }
 
+    pub fn is_tombprime(&self) -> bool {
+        match self {
+            &ValueSlot::TombstonePrime => true,
+            _ => false,
+        }
+    }
+
     pub fn is_prime(&self) -> bool {
         match self {
             &ValueSlot::TombstonePrime | &ValueSlot::ValuePrime(_) => true,
@@ -394,6 +401,7 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                         old_value = cheat_lifetime(current);
                         continue;
                     } else {
+                        debug_assert!(atomic_value_slot.load(guard).as_option().expect("null -> T'").deref().is_tombprime());
                         return;
                     }
                 },
@@ -410,8 +418,9 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
                                 debug_assert!(old_value.as_option().is_some());
                                 continue;
                             },
-                            Ok(_) => {
-                                unsafe { old_value.try_defer_drop(guard); }
+                            Ok(_new) => {
+                                debug_assert!(_new.is_tombprime());
+                                unsafe { guard.defer(move || not_null.drop()); }
                                 return;
                             }
                         }
@@ -650,8 +659,13 @@ impl<'guard, 'map: 'guard, K, V, S> MapInner<'map, K,V,S>
         if decrement {
             self.size.fetch_sub(1, Ordering::SeqCst);
         }
-        unsafe { old_value_slot.try_defer_drop(guard); }
-        return old_value_slot.as_option().map(|n| n.deref());
+        match old_value_slot.as_option() {
+            None => None,
+            Some(value) => {
+                unsafe { guard.defer(move || { value.drop(); })}
+                Some(value.deref())
+            }
+        }
     }
 
     pub fn put_if_match<Q>(
