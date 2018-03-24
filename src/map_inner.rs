@@ -51,7 +51,6 @@
 //! |   V    | A value is here.                                                  |
 //! |   V'   | A value is here but the table is currently being resized.         |
 //! |   T    | Value was removed.                                                |
-//! |   T'   | This slot is taken because there is a newer table available.      |
 //!
 //! ## State Diagram
 //! ```text
@@ -63,7 +62,7 @@
 //!      |                 |                |
 //!      |                 |                |
 //!      |                \|/              \|/
-//!      |              (K, V') -------> (K, T')
+//!      |              (K, V') -------> (K, X)
 //!      |                                 /|\
 //!      |                                  |
 //!      └----------------------------------┘
@@ -108,14 +107,14 @@
 //! The transitions necessary in both the old and new map are shown below:
 //! ```text
 //! Transition# |        [1]        |        [2]       |        [3]       |         [4]
-//! Old Map     | (K, V) -> (K, V') |                  |                  | (K, V') -> (K, T')
+//! Old Map     | (K, V) -> (K, V') |                  |                  | (K, V') -> (K, X)
 //! New Map     |                   | (∅, ∅) -> (K, ∅) | (K, ∅) -> (K, V) |
 //! ```
 //! - Transition [1] marks the value slot as being copied.
 //!   If another thread tries to access it while it's `V'`,
 //!       then it must help complete copying this key/value pair into the newer map.
 //!   Note that if V is actually null or `T`,
-//!       we can simply set it to `T'`
+//!       we can simply set it to `X`
 //!       and skip inserting a tombstone/null value into the newer map,
 //!       which just wastes a key slot.
 //! - Transition [2] and [3] copy the old value into the new map.
@@ -127,7 +126,7 @@
 //!   This is because if the slot wasn't being copied,
 //!     it would have overridden the current `V` with another,
 //!     which would have ended up being copied into the newer table afterwards.
-//! - Finally, transition [4] completes the copy by marking the valueslot as `T'`,
+//! - Finally, transition [4] completes the copy by marking the valueslot as `X`,
 //!     meaning there could be something here (or not)
 //!     but you need to see the newer table to find out.
 //!
@@ -183,7 +182,7 @@ pub enum ValueSlot<'v, V: 'v> {
     ///     2) This used to be a `ValueSlot::Value(_)` slot that has now been copied into the
     ///        newer table.
     /// This is the final state for any `ValueSlot`.
-    TombstonePrime,
+    SeeNewTable,
 }
 
 impl<'v, V> ValueSlot<'v, V> {
@@ -211,19 +210,19 @@ impl<'v, V> ValueSlot<'v, V> {
         }
     }
 
-    /// Returns true if and only if the `ValueSlot` has discriminant `TombstonePrime`.
+    /// Returns true if and only if the `ValueSlot` has discriminant `SeeNewTable`.
     pub fn is_tombprime(&self) -> bool {
         match self {
-            &ValueSlot::TombstonePrime => true,
+            &ValueSlot::SeeNewTable => true,
             _ => false,
         }
     }
 
     /// Returns true if and only if the `ValueSlot` has either discriminant `ValuePrime` or
-    /// `TombstonePrime`.
+    /// `SeeNewTable`.
     pub fn is_prime(&self) -> bool {
         match self {
-            &ValueSlot::TombstonePrime | &ValueSlot::ValuePrime(_) => true,
+            &ValueSlot::SeeNewTable | &ValueSlot::ValuePrime(_) => true,
             _ => false,
         }
     }
@@ -622,15 +621,15 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
         //
         //         |     [1]           |         [2]               |        [3]
         // --------+-------------------+---------------------------+-------------------
-        // Old Map | (K, V) -> (K, V') |                           | (K, V') -> (K, T')
+        // Old Map | (K, V) -> (K, V') |                           | (K, V') -> (K, X)
         // --------+-------------------+---------------------------+-------------------
         // New Map |                   | (null, null) -> (K, null) |
         //         |                   | (K, null) -> (K, V)       |
         //
         // However, if, in transition [1]:
-        //      1) V is null here, then just set it to T' and let the thread that's trying to
+        //      1) V is null here, then just set it to X and let the thread that's trying to
         //         copy in its (K,V) pair insert it into the newer map.
-        //      2) V is a tombstone (T) here, then just set it to T' and don't copy a key
+        //      2) V is a tombstone (T) here, then just set it to X and don't copy a key
         //         without a value into the newer map.
         // Note that also both operations in transition [2] can happen on two different threads.
         // In addition, care needs to be taken for the rest of this function to ensure that we
@@ -642,11 +641,11 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
 
         loop {
             match old_value.as_option() {
-                // Swap `None`/`Null` values with `TombstonePrime`.
+                // Swap `None`/`Null` values with `SeeNewTable`.
                 None => {
                     match atomic_value_slot.compare_and_set_owned(
                         MaybeNull::from_shared(Shared::null()),
-                        NotNullOwned::new(ValueSlot::TombstonePrime),
+                        NotNullOwned::new(ValueSlot::SeeNewTable),
                         guard,
                     ) {
                         Err((current, _)) => {
@@ -655,7 +654,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                             continue;
                         },
                         Ok(current) => {
-                            // Successfully did (K,null) -> (K, T'). Thus there's nothing more to do
+                            // Successfully did (K,null) -> (K, X). Thus there's nothing more to do
                             // here, and we obviously don't need to free the null pointer.
                             debug_assert!(current.deref().is_tombprime());
                             return;
@@ -665,22 +664,22 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 // Otherwise we have a `ValueSlot` here. Let's take a little peek inside.
                 Some(not_null) => match not_null.deref() {
                     // Some other thread copied the slot already. Nothing to do or free here.
-                    &ValueSlot::TombstonePrime  => return,
+                    &ValueSlot::SeeNewTable  => return,
                     &ValueSlot::Tombstone => {
                         match atomic_value_slot.compare_and_set_owned(
                             old_value,
-                            NotNullOwned::new(ValueSlot::TombstonePrime),
+                            NotNullOwned::new(ValueSlot::SeeNewTable),
                             guard,
                         ) {
                             Err((current, _)) => {
                                 // Assert that `Tombstone` can't turn into `Null`. But it can still
-                                // be V/V'/T/T'
+                                // be V/V'/T/X
                                 debug_assert!(current.as_option().is_some());
                                 old_value = cheat_lifetime(current);
                                 continue;
                             },
                             Ok(_new) => {
-                                // Successfully did (K, T) -> (K, T'). Remember that `old_value`
+                                // Successfully did (K, T) -> (K, X). Remember that `old_value`
                                 // here is just the atomic pointer to the tombstone. However, all
                                 // `ValueSlot`s are behind pointers and therefore need to be freed.
                                 debug_assert!(_new.is_tombprime());
@@ -746,7 +745,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 _ => unreachable!("`ValuePrime` can only be a reference to a `Value`"),
             }
             &ValueSlot::Tombstone => unreachable!(),
-            &ValueSlot::TombstonePrime => unreachable!(),
+            &ValueSlot::SeeNewTable => unreachable!(),
         };
         // Now we try to copy the original value into the newer map, but only if there is
         // no value in there already. If this fails, then it was copied and/or updated in
@@ -770,13 +769,13 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             debug_assert!(atomic_value_slot.is_tagged(guard));
         }
 
-        // Now we simply need to just do (K, V') -> (K, T').
+        // Now we simply need to just do (K, V') -> (K, X).
         let mut primed_old_value_maybe: MaybeNull<_> = primed_old_value.as_maybe_null();
         loop {
             // FIXME: This doesn't have to be weak. But for some reason when this returns an Err
-            // value, it can still be V' instead of T', even if it's strong CAS.
+            // value, it can still be V' instead of X, even if it's strong CAS.
             match atomic_value_slot.compare_and_set_owned_weak(
-                primed_old_value_maybe, NotNullOwned::new(ValueSlot::TombstonePrime), guard
+                primed_old_value_maybe, NotNullOwned::new(ValueSlot::SeeNewTable), guard
             ) {
                 Ok(_current) => {
                     debug_assert!(_current.is_tombprime());
@@ -916,7 +915,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                     match atomic_value_slot.load(&guard).as_option()?.deref() {
                         &ValueSlot::Value(ref v) => return Some(&v),
                         &ValueSlot::Tombstone => return None,
-                        &ValueSlot::ValuePrime(_) | &ValueSlot::TombstonePrime => {
+                        &ValueSlot::ValuePrime(_) | &ValueSlot::SeeNewTable => {
                             return self.ensure_slot_copied(index, outer_map, guard)
                                 .get(key, outer_map, guard)
                         }
