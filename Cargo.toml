@@ -1,13 +1,14 @@
 [package]
 name = "lockfreehashmap"
 description = "A concurrent, lock-free hash map."
-version = "0.1.1"
+version = "0.1.2"
 authors = [" <>"]
 license = "LGPL-3.0+"
 keywords = ["lock-free", "hashmap", "hash", "concurrent"]
 categories = ["concurrency", "data-structures"]
 documentation = "https://docs.rs/lockfreehashmap/"
 repository = "https://github.com/rolag/lockfreehashmap-rs"
+readme = "README.md"
 
 [dependencies]
 crossbeam-utils = "0.3"
