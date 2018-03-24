@@ -6,6 +6,7 @@ authors = [" <>"]
 license = "LGPL-3.0-or-later"
 keywords = ["lock-free", "hashmap", "hash", "concurrent"]
 categories = ["concurrency", "data-structures"]
+repository = "https://github.com/rolag/lockfreehashmap-rs"
 
 [dependencies]
 crossbeam = { version = "0.4.0", git = "https://github.com/crossbeam-rs/crossbeam/"}
