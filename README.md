@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/badge/license-LGPL--3.0+-blue.svg)](https://github.com/rolag/lockfreehashmap)
 [![Cargo](https://img.shields.io/crates/v/lockfreehashmap.svg)](https://crates.io/crates/lockfreehashmap)
 [![Documentation](https://docs.rs/lockfreehashmap/badge.svg)](https://docs.rs/lockfreehashmap)
+[![Continuous Integration](https://api.travis-ci.org/rolag/lockfreehashmap-rs.svg?branch=master)](https://travis-ci.org/rolag/lockfreehashmap-rs)
 
 A concurrent, lock-free hash map for Rust.
 
