@@ -138,8 +138,7 @@
 //!     which is essentially a blocking algorithm,
 //!     each thread can help make progress by doing any (or all) of the 4 transitions above.
 
-use crossbeam;
-use crossbeam::epoch::{Guard, Shared};
+use crossbeam_epoch::{Guard, Shared};
 use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::fmt;
@@ -1164,7 +1163,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
 
 impl<'v, K, V, S> Drop for MapInner<'v, K, V, S> {
     fn drop(&mut self) {
-        let guard = &crossbeam::epoch::pin();
+        let guard = &::pin();
         for (mut k_ptr, mut v_ptr) in self.map.drain(..) {
             unsafe {
                 guard.defer(move || {
@@ -1181,7 +1180,7 @@ impl<'v, K, V, S> Drop for MapInner<'v, K, V, S> {
 
 impl<'v, K: fmt::Debug, V: fmt::Debug, S> fmt::Debug for MapInner<'v, K, V, S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let guard = &crossbeam::epoch::pin();
+        let guard = &::pin();
         write!(f, "MapInner {{ map: {:?}, size: {:?}, capacity: {}, newer_map: {:?}, resizers: {:?}, chunks_copied: {:?} }}",
             self.map.iter()
                 .map(|&(ref k, ref v)| (k.load(guard).as_option(), v.load(guard).as_option()))

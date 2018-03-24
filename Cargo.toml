@@ -9,6 +9,6 @@ categories = ["concurrency", "data-structures"]
 repository = "https://github.com/rolag/lockfreehashmap-rs"
 
 [dependencies]
-crossbeam = { version = "0.4.0", git = "https://github.com/crossbeam-rs/crossbeam/"}
+crossbeam-utils = "0.3"
 crossbeam-epoch = "0.4.0"
 rand = "0.4"

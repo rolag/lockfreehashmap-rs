@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use crossbeam;
-use crossbeam::epoch::{Atomic, Guard, Owned, Shared};
+use crossbeam_epoch::{Atomic, Guard, Owned, Shared};
 use std::fmt;
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
@@ -261,7 +260,7 @@ impl<T> AtomicPtr<T> {
 
 impl<T: fmt::Debug> fmt::Debug for AtomicPtr<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let guard = crossbeam::epoch::pin();
+        let guard = ::pin();
         write!(f, "{:?}", self.load(&guard))
     }
 }
@@ -294,14 +293,14 @@ impl<T> AtomicBox<T> {
 
 impl<T: fmt::Debug> fmt::Debug for AtomicBox<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let guard = crossbeam::epoch::pin();
+        let guard = ::pin();
         write!(f, "{:?}", self.load(&guard).as_maybe_null())
     }
 }
 
 impl<T> Drop for AtomicBox<T> {
     fn drop(&mut self) {
-        let guard = crossbeam::epoch::pin();
+        let guard = ::pin();
         let inner = self.0.swap(Shared::null(), ORDERING, &guard);
         debug_assert!(!inner.is_null());
         if !inner.is_null() {

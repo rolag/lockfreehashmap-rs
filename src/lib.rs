@@ -43,7 +43,8 @@
 //#[global_allocator]
 //static A: System = System;
 
-extern crate crossbeam;
+extern crate crossbeam_epoch;
+extern crate crossbeam_utils as crossbeam;
 
 use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
@@ -54,9 +55,9 @@ mod atomic;
 mod map_inner;
 
 /// Re-export `crossbeam::epoch::pin()` and its return type for convenience.
-pub use crossbeam::epoch::{pin, Guard};
+pub use crossbeam_epoch::{pin, Guard};
 /// Re-export `crossbeam::scope()` and its return type for convenience.
-pub use crossbeam::{scope, Scope};
+pub use crossbeam::scoped::{scope, Scope};
 
 use atomic::AtomicBox;
 use map_inner::{KeyCompare, MapInner, Match, PutValue, ValueSlot};
@@ -110,7 +111,7 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v
     /// assert_eq!(map.capacity(), 8);
     /// ```
     pub fn capacity(&self) -> usize {
-        let guard = crossbeam::epoch::pin();
+        let guard = pin();
         self.load_inner(&guard).capacity()
     }
 
@@ -128,7 +129,7 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v
     /// assert_eq!(map.len(), 1);
     /// ```
     pub fn len(&self) -> usize {
-        let guard = crossbeam::epoch::pin();
+        let guard = pin();
         self.load_inner(&guard).len()
     }
 
@@ -157,7 +158,7 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
     {
-        let guard = crossbeam::epoch::pin();
+        let guard = pin();
         self.get(key, &guard).is_some()
     }
 
@@ -277,7 +278,7 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v
 
 impl<'v, K, V, S> Drop for LockFreeHashMap<'v, K, V, S> {
     fn drop(&mut self) {
-        let guard = crossbeam::epoch::pin();
+        let guard = pin();
         // self.inner will be dropped because Drop is implemented on `AtomicBox`
         // But if self.inner has pointers to newer maps, then those need to be explicitely dropped.
         unsafe {
@@ -290,7 +291,7 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug + PartialEq>
     fmt::Debug for LockFreeHashMap<'v,K,V>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let guard = crossbeam::epoch::pin();
+        let guard = pin();
         write!(f, "LockFreeHashMap {{ {:?} }}", self.load_inner(&guard))
     }
 }
@@ -304,26 +305,26 @@ mod test {
     #[test]
     fn test_basic() {
         let map = LockFreeHashMap::<u8, u8>::new();
-        let test_guard = crossbeam::epoch::pin();
+        let test_guard = pin();
         for i in 1..4 {
             map.insert(i, i, &test_guard);
         }
         let map = &map;
-        crossbeam::scope(|scope| {
+        scope(|scope| {
             scope.spawn(|| {
-                let test_guard = crossbeam::epoch::pin();
+                let test_guard = pin();
                 assert_eq!(map.get(&1, &test_guard), Some(&1));
             });
             scope.spawn(|| {
-                let test_guard = crossbeam::epoch::pin();
+                let test_guard = pin();
                 assert_eq!(map.insert(100, 101, &test_guard), None);
             });
             scope.spawn(|| {
-                let test_guard = crossbeam::epoch::pin();
+                let test_guard = pin();
                 assert_eq!(map.insert(5, 4, &test_guard), None);
             });
             scope.spawn(|| {
-                let test_guard = crossbeam::epoch::pin();
+                let test_guard = pin();
                 assert_eq!(map.get(&4, &test_guard), None);
                 assert_eq!(map.insert(3, 4, &test_guard), Some(&3));
                 assert_eq!(map.get(&3, &test_guard), Some(&4));
@@ -341,7 +342,7 @@ mod test {
 
     fn test_single_thread_insert(size: usize) {
         let map = &LockFreeHashMap::<usize, String>::new();
-        let test_guard = crossbeam::epoch::pin();
+        let test_guard = pin();
         for i in 0..size {
             map.insert(i, i.to_string(), &test_guard);
             assert_eq!(i + 1, map.len());
@@ -391,10 +392,10 @@ mod test {
     #[test]
     fn test_resize() {
         let map = &LockFreeHashMap::<u32, Vec<u64>>::with_capacity(4);
-        crossbeam::scope(|scope| {
+        scope(|scope| {
             for i in 1..256 {
                 scope.spawn(move || {
-                    let guard = crossbeam::epoch::pin();
+                    let guard = pin();
                     let mut vec = vec![];
                     for i in 1..100 {
                         vec.push(i);
@@ -426,11 +427,11 @@ mod test {
         }
         let valid_states = &valid_states;
         let map = &LockFreeHashMap::<Box<u32>, Box<u32>>::new();
-        crossbeam::scope(|scope| {
+        scope(|scope| {
             for _ in 0..NUMBER_OF_THREADS {
                 scope.spawn(move || {
                     let mut rng = rand::thread_rng();
-                    let guard = crossbeam::epoch::pin();
+                    let guard = pin();
                     for _ in 0..NUMBER_OF_OPERATIONS_PER_THREAD {
                         match (rng.gen_range(0, 3),
                                rng.gen_range::<usize>(0, NUMBER_OF_KEYS),
