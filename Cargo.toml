@@ -1,11 +1,12 @@
 [package]
 name = "lockfreehashmap"
 description = "A concurrent, lock-free hash map."
-version = "0.1.0"
+version = "0.1.1"
 authors = [" <>"]
 license = "LGPL-3.0+"
 keywords = ["lock-free", "hashmap", "hash", "concurrent"]
 categories = ["concurrency", "data-structures"]
+documentation = "https://docs.rs/lockfreehashmap/"
 repository = "https://github.com/rolag/lockfreehashmap-rs"
 
 [dependencies]
