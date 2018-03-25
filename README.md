@@ -32,37 +32,38 @@ extern crate lockfreehashmap;
 ## Example
 ```rust
 extern crate lockfreehashmap;
-use lockfreehashmap::{self, LockFreeHashMap};
+use lockfreehashmap::LockFreeHashMap;
 
-let map = LockFreeHashMap::<u8, u8>::new();
-let insert_guard = lockfreehashmap::pin();
-for i in 1..4 {
-    map.insert(i, i, &insert_guard);
-}
-drop(insert_guard);
-
-let map = &map;
-lockfreehashmap::scope(|scope| {
-    // Spawn multiple threads, e.g. for a server that executes some actions on a loop
-    for _ in 0..16 {
-        scope.spawn(|| {
-            loop {
-                let mut line = String::new();
-                ::std::io::stdin().read_line(&mut line).unwrap();
-                let iter = line.split_whitespace();
-                let command: &str = iter.next().unwrap();
-                let key: u8 = iter.next().unwrap().parse();
-                let value: u8 = iter.next().unwrap().parse();
-                let guard = lockfreehashmap::pin();
-                let _result = match command {
-                    "insert" => map.insert(key, value, &guard),
-                    _ => {/* ... */},
-                };
-                drop(guard);
-            }
-        });
+fn main() {
+    let map = LockFreeHashMap::<u8, u8>::new();
+    let insert_guard = lockfreehashmap::pin();
+    for i in 1..4 {
+        map.insert(i, i, &insert_guard);
     }
-});
+    drop(insert_guard);
+
+    let map = &map;
+    lockfreehashmap::scope(|scope| {
+        // Spawn multiple threads, e.g. for a server that executes some actions on a loop
+        for _ in 0..16 {
+            scope.spawn(|| {
+                loop {
+                    let mut line = String::new();
+                    ::std::io::stdin().read_line(&mut line).unwrap();
+                    let mut iter = line.split_whitespace();
+                    let command: &str = iter.next().unwrap();
+                    let key: u8 = iter.next().unwrap().parse().unwrap();
+                    let value: u8 = iter.next().unwrap().parse().unwrap();
+                    let guard = lockfreehashmap::pin();
+                    let _result = match command {
+                        "insert" => map.insert(key, value, &guard),
+                        _ => unimplemented!(),
+                    };
+                }
+            });
+        }
+    });
+}
 ```
 
 ## License
