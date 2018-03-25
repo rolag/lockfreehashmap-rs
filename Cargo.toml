@@ -10,6 +10,9 @@ documentation = "https://docs.rs/lockfreehashmap/"
 repository = "https://github.com/rolag/lockfreehashmap-rs"
 readme = "README.md"
 
+[lib]
+name = "lockfreehashmap"
+
 [dependencies]
 crossbeam-utils = "0.3"
 crossbeam-epoch = "0.4.0"
