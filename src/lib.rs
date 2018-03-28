@@ -49,7 +49,7 @@ extern crate crossbeam_utils as crossbeam;
 use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::fmt;
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash};
 
 mod atomic;
 mod map_inner;
@@ -69,10 +69,10 @@ pub struct LockFreeHashMap<'v, K, V: 'v, S = RandomState> {
     inner: AtomicBox<MapInner<'v,K,V,S>>,
 }
 
-impl<'v, K, V, S> LockFreeHashMap<'v,K,V,S>
-    where K: Hash + Eq,
+impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
+    where K: 'guard + Hash + Eq,
           V: PartialEq,
-          S: ::std::hash::BuildHasher + Clone,
+          S: 'guard + BuildHasher + Clone,
 {
     /// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.
     pub const DEFAULT_CAPACITY: usize = 8;
@@ -99,34 +99,10 @@ impl<'v, K, V, S> LockFreeHashMap<'v,K,V,S>
             inner: AtomicBox::new(MapInner::with_capacity_and_hasher(capacity, hasher))
         }
     }
-}
 
-impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v,K,V> {
-
-    /// Creates a new `LockFreeHashMap`.
-    ///
-    /// # Examples
-    /// ```
-    /// # #![allow(unused_variables)]
-    /// # use lockfreehashmap::LockFreeHashMap;
-    /// let map = LockFreeHashMap::<u32, String>::new();
-    /// ```
-    pub fn new() -> Self {
-        Self::with_capacity(Self::DEFAULT_CAPACITY)
-    }
-
-    /// Creates a new `LockFreeHashMap` of a given size. Uses the next power of two if size is not
-    /// a power of two.
-    ///
-    /// # Examples
-    /// ```
-    /// # use lockfreehashmap::LockFreeHashMap;
-    /// let map = LockFreeHashMap::<u32, String>::with_capacity(12);
-    /// assert_eq!(map.capacity(), 12usize.next_power_of_two());
-    /// assert_eq!(map.capacity(), 16);
-    /// ```
-    pub fn with_capacity(size: usize) -> Self {
-        LockFreeHashMap { inner: AtomicBox::new(MapInner::with_capacity(size)) }
+    /// Private helper method to load the `inner` field as a &[MapInner].
+    pub(crate) fn load_inner(&self, guard: &'guard Guard) -> &'guard MapInner<'v,K,V,S> {
+        self.inner.load(&guard).deref()
     }
 
     /// Returns the number of elements the map can hold without reallocating.
@@ -187,11 +163,6 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v
     {
         let guard = pin();
         self.get(key, &guard).is_some()
-    }
-
-    /// Private helper method to load the `inner` field as a &[MapInner].
-    fn load_inner(&self, guard: &'guard Guard) -> &'guard MapInner<'v,K,V> {
-        self.inner.load(&guard).deref()
     }
 
     /// Returns a reference to the value corresponding to the key. The key may be any borrowed
@@ -299,6 +270,35 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v
             &guard
         );
         return ValueSlot::as_inner(value_slot);
+    }
+}
+
+impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v,K,V> {
+
+    /// Creates a new `LockFreeHashMap`.
+    ///
+    /// # Examples
+    /// ```
+    /// # #![allow(unused_variables)]
+    /// # use lockfreehashmap::LockFreeHashMap;
+    /// let map = LockFreeHashMap::<u32, String>::new();
+    /// ```
+    pub fn new() -> Self {
+        Self::with_capacity(Self::DEFAULT_CAPACITY)
+    }
+
+    /// Creates a new `LockFreeHashMap` of a given size. Uses the next power of two if size is not
+    /// a power of two.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::LockFreeHashMap;
+    /// let map = LockFreeHashMap::<u32, String>::with_capacity(12);
+    /// assert_eq!(map.capacity(), 12usize.next_power_of_two());
+    /// assert_eq!(map.capacity(), 16);
+    /// ```
+    pub fn with_capacity(size: usize) -> Self {
+        LockFreeHashMap { inner: AtomicBox::new(MapInner::with_capacity(size)) }
     }
 }
 
