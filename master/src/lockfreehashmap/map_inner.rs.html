@@ -1240,6 +1240,10 @@
 <span id="1194">1194</span>
 <span id="1195">1195</span>
 <span id="1196">1196</span>
+<span id="1197">1197</span>
+<span id="1198">1198</span>
+<span id="1199">1199</span>
+<span id="1200">1200</span>
 </pre><pre class="rust ">
 <span class="comment">// LockFreeHashMap -- A concurrent, lock-free hash map for Rust.</span>
 <span class="comment">// Copyright (C) 2018  rolag</span>
@@ -1631,7 +1635,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> <span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The default size of a new `LockFreeHashMap`.</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> ::<span class="ident">LockFreeHashMap</span>::<span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span>::<span class="ident">DEFAULT_CAPACITY</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> ::<span class="ident">LockFreeHashMap</span>::<span class="op">&lt;</span>(), (), <span class="ident">RandomState</span><span class="op">&gt;</span>::<span class="ident">DEFAULT_CAPACITY</span>;
 
     <span class="doccomment">/// Drops `self.newer_map` and any newer maps that `self.newer_map` points to.</span>
     <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">drop_newer_maps</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="ident">Guard</span>) {
@@ -2401,6 +2405,10 @@
                 },
             }
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clone_hasher</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">S</span> {
+        <span class="self">self</span>.<span class="ident">hash_builder</span>.<span class="ident">clone</span>()
     }
 }
 

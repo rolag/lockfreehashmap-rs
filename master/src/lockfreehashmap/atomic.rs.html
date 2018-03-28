@@ -382,6 +382,12 @@
 <span id="336">336</span>
 <span id="337">337</span>
 <span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
 </pre><pre class="rust ">
 <span class="comment">// LockFreeHashMap -- A concurrent, lock-free hash map for Rust.</span>
 <span class="comment">// Copyright (C) 2018  rolag</span>
@@ -660,6 +666,12 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">load</span><span class="op">&lt;</span><span class="lifetime">&#39;g</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;g</span> <span class="ident">Guard</span>) <span class="op">-&gt;</span> <span class="ident">NotNull</span><span class="op">&lt;</span><span class="lifetime">&#39;g</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="ident">NotNull</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">load</span>(<span class="ident">ORDERING</span>, <span class="ident">guard</span>))
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">replace</span><span class="op">&lt;</span><span class="lifetime">&#39;g</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) {
+        <span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span>::<span class="ident">pin</span>();
+        <span class="kw">let</span> <span class="ident">contents</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">swap</span>(<span class="ident">Owned</span>::<span class="ident">new</span>(<span class="ident">value</span>), <span class="ident">ORDERING</span>, <span class="kw-2">&amp;</span><span class="ident">guard</span>);
+        <span class="kw">unsafe</span> { <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> <span class="ident">contents</span>.<span class="ident">into_owned</span>()); }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compare_and_set_shared</span><span class="op">&lt;</span><span class="lifetime">&#39;g</span><span class="op">&gt;</span>(

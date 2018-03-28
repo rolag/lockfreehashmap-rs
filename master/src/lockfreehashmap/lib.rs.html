@@ -509,6 +509,75 @@
 <span id="463">463</span>
 <span id="464">464</span>
 <span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
 </pre><pre class="rust ">
 <span class="comment">// LockFreeHashMap -- A concurrent, lock-free hash map for Rust.</span>
 <span class="comment">// Copyright (C) 2018  rolag</span>
@@ -561,7 +630,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Borrow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">hash_map</span>::<span class="ident">RandomState</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::<span class="ident">Hash</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::{<span class="ident">BuildHasher</span>, <span class="ident">Hash</span>};
 
 <span class="kw">mod</span> <span class="ident">atomic</span>;
 <span class="kw">mod</span> <span class="ident">map_inner</span>;
@@ -581,37 +650,40 @@
     <span class="ident">inner</span>: <span class="ident">AtomicBox</span><span class="op">&lt;</span><span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span>,<span class="ident">S</span><span class="op">&gt;&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> <span class="ident">LockFreeHashMap</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span>,<span class="ident">S</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;guard</span>, <span class="lifetime">&#39;v</span>: <span class="lifetime">&#39;guard</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> <span class="ident">LockFreeHashMap</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span>,<span class="ident">S</span><span class="op">&gt;</span>
+    <span class="kw">where</span> <span class="ident">K</span>: <span class="lifetime">&#39;guard</span> <span class="op">+</span> <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Eq</span>,
+          <span class="ident">V</span>: <span class="ident">PartialEq</span>,
+          <span class="ident">S</span>: <span class="lifetime">&#39;guard</span> <span class="op">+</span> <span class="ident">BuildHasher</span> <span class="op">+</span> <span class="ident">Clone</span>,
+{
     <span class="doccomment">/// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.</span>
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">8</span>;
-}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;guard</span>, <span class="lifetime">&#39;v</span>: <span class="lifetime">&#39;guard</span>, <span class="ident">K</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="lifetime">&#39;guard</span>, <span class="ident">V</span>: <span class="ident">PartialEq</span><span class="op">&gt;</span> <span class="ident">LockFreeHashMap</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span><span class="op">&gt;</span> {
-
-    <span class="doccomment">/// Creates a new `LockFreeHashMap`.</span>
+    <span class="doccomment">/// Creates an empty `LockFreeHashMap` with the specified capacity, using `hasher` to hash the</span>
+    <span class="doccomment">/// keys.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The hash map will be able to hold at least `capacity` elements without</span>
+    <span class="doccomment">/// reallocating. If `capacity` is 0, the hash map will use the next power of 2 (i.e. 1).</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # #![allow(unused_variables)]</span>
-    <span class="doccomment">/// # use lockfreehashmap::LockFreeHashMap;</span>
-    <span class="doccomment">/// let map = LockFreeHashMap::&lt;u32, String&gt;::new();</span>
+    <span class="doccomment">/// use lockfreehashmap::LockFreeHashMap;</span>
+    <span class="doccomment">/// use std::collections::hash_map::RandomState;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// let s = RandomState::new();</span>
+    <span class="doccomment">/// let mut map = LockFreeHashMap::with_capacity_and_hasher(10, s);</span>
+    <span class="doccomment">/// let guard = lockfreehashmap::pin();</span>
+    <span class="doccomment">/// map.insert(1, 2, &amp;guard);</span>
     <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span>::<span class="ident">with_capacity</span>(<span class="self">Self</span>::<span class="ident">DEFAULT_CAPACITY</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_capacity_and_hasher</span>(<span class="ident">capacity</span>: <span class="ident">usize</span>, <span class="ident">hasher</span>: <span class="ident">S</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+        <span class="ident">LockFreeHashMap</span> {
+            <span class="ident">inner</span>: <span class="ident">AtomicBox</span>::<span class="ident">new</span>(<span class="ident">MapInner</span>::<span class="ident">with_capacity_and_hasher</span>(<span class="ident">capacity</span>, <span class="ident">hasher</span>))
+        }
     }
 
-    <span class="doccomment">/// Creates a new `LockFreeHashMap` of a given size. Uses the next power of two if size is not</span>
-    <span class="doccomment">/// a power of two.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # use lockfreehashmap::LockFreeHashMap;</span>
-    <span class="doccomment">/// let map = LockFreeHashMap::&lt;u32, String&gt;::with_capacity(12);</span>
-    <span class="doccomment">/// assert_eq!(map.capacity(), 12usize.next_power_of_two());</span>
-    <span class="doccomment">/// assert_eq!(map.capacity(), 16);</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_capacity</span>(<span class="ident">size</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
-        <span class="ident">LockFreeHashMap</span> { <span class="ident">inner</span>: <span class="ident">AtomicBox</span>::<span class="ident">new</span>(<span class="ident">MapInner</span>::<span class="ident">with_capacity</span>(<span class="ident">size</span>)) }
+    <span class="doccomment">/// Private helper method to load the `inner` field as a &amp;[MapInner].</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">load_inner</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;guard</span> <span class="ident">Guard</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;guard</span> <span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span>,<span class="ident">S</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>).<span class="ident">deref</span>()
     }
 
     <span class="doccomment">/// Returns the number of elements the map can hold without reallocating.</span>
@@ -645,9 +717,51 @@
         <span class="self">self</span>.<span class="ident">load_inner</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>).<span class="ident">len</span>()
     }
 
-    <span class="doccomment">/// Clears the map, removing all key-value pairs. Keeps the allocated memory for reuse.</span>
+    <span class="doccomment">/// Clears the entire map.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This has the same effects as if calling `LockFreeHashMap::with_capacity()`, but its effects</span>
+    <span class="doccomment">/// are visible to all threads. Because of this, new memory is always allocated before the old</span>
+    <span class="doccomment">/// map&#39;s memory is dropped.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use lockfreehashmap::*;</span>
+    <span class="doccomment">/// let map = LockFreeHashMap::&lt;u32, String&gt;::with_capacity(8);</span>
+    <span class="doccomment">/// let guard = lockfreehashmap::pin();</span>
+    <span class="doccomment">/// map.insert(5, String::from(&quot;five&quot;), &amp;guard);</span>
+    <span class="doccomment">/// assert_eq!(map.capacity(), 8);</span>
+    <span class="doccomment">/// assert_eq!(map.len(), 1);</span>
+    <span class="doccomment">/// map.clear();</span>
+    <span class="doccomment">/// assert_eq!(map.capacity(), 8);</span>
+    <span class="doccomment">/// assert_eq!(map.len(), 0);</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="macro">unimplemented</span><span class="macro">!</span>()
+        <span class="self">self</span>.<span class="ident">clear_with_capacity</span>(<span class="self">Self</span>::<span class="ident">DEFAULT_CAPACITY</span>);
+    }
+
+    <span class="doccomment">/// Clears the entire map.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This has the same effects as if calling `LockFreeHashMap::with_capacity()`, but its effects</span>
+    <span class="doccomment">/// are visible to all threads. Because of this, new memory is always allocated before the old</span>
+    <span class="doccomment">/// map&#39;s memory is dropped.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use lockfreehashmap::*;</span>
+    <span class="doccomment">/// let map = LockFreeHashMap::&lt;u32, String&gt;::with_capacity(8);</span>
+    <span class="doccomment">/// let guard = lockfreehashmap::pin();</span>
+    <span class="doccomment">/// map.insert(5, String::from(&quot;five&quot;), &amp;guard);</span>
+    <span class="doccomment">/// assert_eq!(map.capacity(), 8);</span>
+    <span class="doccomment">/// assert_eq!(map.len(), 1);</span>
+    <span class="doccomment">/// map.clear_with_capacity(15);</span>
+    <span class="doccomment">/// assert_eq!(map.capacity(), 16);</span>
+    <span class="doccomment">/// assert_eq!(map.len(), 0);</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear_with_capacity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">capacity</span>: <span class="ident">usize</span>) {
+        <span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="ident">pin</span>();
+        <span class="kw">let</span> <span class="ident">hasher</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">load_inner</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>).<span class="ident">clone_hasher</span>();
+        <span class="kw">let</span> <span class="ident">newer_map</span> <span class="op">=</span> <span class="ident">MapInner</span>::<span class="ident">with_capacity_and_hasher</span>(<span class="ident">capacity</span>, <span class="ident">hasher</span>);
+        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">replace</span>(<span class="ident">newer_map</span>);
     }
 
     <span class="doccomment">/// Returns true if the map contains a value for the specified key.</span>
@@ -672,11 +786,6 @@
     {
         <span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="ident">pin</span>();
         <span class="self">self</span>.<span class="ident">get</span>(<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="ident">guard</span>).<span class="ident">is_some</span>()
-    }
-
-    <span class="doccomment">/// Private helper method to load the `inner` field as a &amp;[MapInner].</span>
-    <span class="kw">fn</span> <span class="ident">load_inner</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;guard</span> <span class="ident">Guard</span>) <span class="op">-&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;guard</span> <span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>).<span class="ident">deref</span>()
     }
 
     <span class="doccomment">/// Returns a reference to the value corresponding to the key. The key may be any borrowed</span>
@@ -784,6 +893,35 @@
             <span class="kw-2">&amp;</span><span class="ident">guard</span>
         );
         <span class="kw">return</span> <span class="ident">ValueSlot</span>::<span class="ident">as_inner</span>(<span class="ident">value_slot</span>);
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;guard</span>, <span class="lifetime">&#39;v</span>: <span class="lifetime">&#39;guard</span>, <span class="ident">K</span>: <span class="ident">Hash</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="lifetime">&#39;guard</span>, <span class="ident">V</span>: <span class="ident">PartialEq</span><span class="op">&gt;</span> <span class="ident">LockFreeHashMap</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span><span class="op">&gt;</span> {
+
+    <span class="doccomment">/// Creates a new `LockFreeHashMap`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # #![allow(unused_variables)]</span>
+    <span class="doccomment">/// # use lockfreehashmap::LockFreeHashMap;</span>
+    <span class="doccomment">/// let map = LockFreeHashMap::&lt;u32, String&gt;::new();</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span>::<span class="ident">with_capacity</span>(<span class="self">Self</span>::<span class="ident">DEFAULT_CAPACITY</span>)
+    }
+
+    <span class="doccomment">/// Creates a new `LockFreeHashMap` of a given size. Uses the next power of two if size is not</span>
+    <span class="doccomment">/// a power of two.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use lockfreehashmap::LockFreeHashMap;</span>
+    <span class="doccomment">/// let map = LockFreeHashMap::&lt;u32, String&gt;::with_capacity(12);</span>
+    <span class="doccomment">/// assert_eq!(map.capacity(), 12usize.next_power_of_two());</span>
+    <span class="doccomment">/// assert_eq!(map.capacity(), 16);</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_capacity</span>(<span class="ident">size</span>: <span class="ident">usize</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
+        <span class="ident">LockFreeHashMap</span> { <span class="ident">inner</span>: <span class="ident">AtomicBox</span>::<span class="ident">new</span>(<span class="ident">MapInner</span>::<span class="ident">with_capacity</span>(<span class="ident">size</span>)) }
     }
 }
 
