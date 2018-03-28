@@ -66,6 +66,11 @@ fn main() {
 }
 ```
 
+## Documentation
+Documentation is available on [docs.rs](https://docs.rs/lockfreehashmap).
+
+Developer documentation of private types is available [here](https://rolag.github.io/lockfreehashmap-rs/master/lockfreehashmap/).
+
 ## License
 GNU Lesser General Public License v3.0 or any later version
 
