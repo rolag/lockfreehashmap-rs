@@ -136,9 +136,51 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
         self.load_inner(&guard).len()
     }
 
-    /// Clears the map, removing all key-value pairs. Keeps the allocated memory for reuse.
+    /// Clears the entire map.
+    ///
+    /// This has the same effects as if calling `LockFreeHashMap::with_capacity()`, but its effects
+    /// are visible to all threads. Because of this, new memory is always allocated before the old
+    /// map's memory is dropped.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<u32, String>::with_capacity(8);
+    /// let guard = lockfreehashmap::pin();
+    /// map.insert(5, String::from("five"), &guard);
+    /// assert_eq!(map.capacity(), 8);
+    /// assert_eq!(map.len(), 1);
+    /// map.clear();
+    /// assert_eq!(map.capacity(), 8);
+    /// assert_eq!(map.len(), 0);
+    /// ```
     pub fn clear(&self) {
-        unimplemented!()
+        self.clear_with_capacity(Self::DEFAULT_CAPACITY);
+    }
+
+    /// Clears the entire map.
+    ///
+    /// This has the same effects as if calling `LockFreeHashMap::with_capacity()`, but its effects
+    /// are visible to all threads. Because of this, new memory is always allocated before the old
+    /// map's memory is dropped.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<u32, String>::with_capacity(8);
+    /// let guard = lockfreehashmap::pin();
+    /// map.insert(5, String::from("five"), &guard);
+    /// assert_eq!(map.capacity(), 8);
+    /// assert_eq!(map.len(), 1);
+    /// map.clear_with_capacity(15);
+    /// assert_eq!(map.capacity(), 16);
+    /// assert_eq!(map.len(), 0);
+    /// ```
+    pub fn clear_with_capacity(&self, capacity: usize) {
+        let guard = pin();
+        let hasher = self.load_inner(&guard).clone_hasher();
+        let newer_map = MapInner::with_capacity_and_hasher(capacity, hasher);
+        self.inner.replace(newer_map);
     }
 
     /// Returns true if the map contains a value for the specified key.

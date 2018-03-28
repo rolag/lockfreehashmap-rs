@@ -1159,6 +1159,10 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             }
         }
     }
+
+    pub fn clone_hasher(&self) -> S {
+        self.hash_builder.clone()
+    }
 }
 
 impl<'v, K, V, S> Drop for MapInner<'v, K, V, S> {

@@ -277,6 +277,12 @@ impl<T> AtomicBox<T> {
         NotNull(self.0.load(ORDERING, guard))
     }
 
+    pub fn replace<'g>(&self, value: T) {
+        let guard = &::pin();
+        let contents = self.0.swap(Owned::new(value), ORDERING, &guard);
+        unsafe { guard.defer(move || contents.into_owned()); }
+    }
+
     pub fn compare_and_set_shared<'g>(
         &'g self,
         compare: NotNull<T>,
