@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["COPY_CHUNK_SIZE",""]],"fn":[["pin","Pins the current thread."],["scope","Create a new `scope`, for deferred destructors."]],"mod":[["atomic",""],["map_inner","This module implements most of the logic behind the [::LockFreeHashMap]."]],"struct":[["Guard","A guard that keeps the current thread pinned."],["LockFreeHashMap",""],["Scope",""]]});

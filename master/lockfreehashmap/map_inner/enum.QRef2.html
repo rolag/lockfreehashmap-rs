@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `QRef2` enum in crate `lockfreehashmap`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, QRef2">
+
+    <title>lockfreehashmap::map_inner::QRef2 - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc enum">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Enum QRef2</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.Shared">Shared</a><a href="#variant.Borrow">Borrow</a></div><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.as_q">as_q</a></div></div><p class='location'><a href='../index.html'>lockfreehashmap</a>::<wbr><a href='index.html'>map_inner</a></p><script>window.sidebarCurrent = {name: 'QRef2', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Enum <a href='../index.html'>lockfreehashmap</a>::<wbr><a href='index.html'>map_inner</a>::<wbr><a class="enum" href=''>QRef2</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/lockfreehashmap/map_inner.rs.html#298-301' title='goto source code'>[src]</a></span></h1>
+<pre class='rust enum'>enum QRef2&lt;'k, 'q, K:&nbsp;'k + <a class="trait" href="https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>&lt;Q&gt;, Q:&nbsp;'q + ?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt; {
+    Shared(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'k </a>K),
+    Borrow(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'q </a>Q),
+}</pre><div class='docblock'><p>See <code>KeyCompare::as_qref()</code> for the motivation behind this type.</p>
+</div><h2 id='variants' class='variants small-section-header'>
+                   Variants<a href='#variants' class='anchor'></a></h2>
+<span id="variant.Shared" class="variant small-section-header"><a href="#variant.Shared" class="anchor field"></a><span id='Shared.v' class='invisible'><code>Shared(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'k </a>K)</code></span></span><span id="variant.Borrow" class="variant small-section-header"><a href="#variant.Borrow" class="anchor field"></a><span id='Borrow.v' class='invisible'><code>Borrow(<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;'q </a>Q)</code></span></span>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><code>impl&lt;'k, 'q, K:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>&lt;Q&gt;, Q:&nbsp;?<a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt; <a class="enum" href="../../lockfreehashmap/map_inner/enum.QRef2.html" title="enum lockfreehashmap::map_inner::QRef2">QRef2</a>&lt;'k, 'q, K, Q&gt;</code><a href='#impl' class='anchor'></a></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/lockfreehashmap/map_inner.rs.html#303-310' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.as_q' class="method"><span id='as_q.v' class='invisible'><code>fn <a href='#method.as_q' class='fnname'>as_q</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.reference.html">&amp;</a>Q</code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../../src/lockfreehashmap/map_inner.rs.html#304-309' title='goto source code'>[src]</a></span></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>↑</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>↓</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>↹</dt>
+                    <dd>Switch tab</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt style="width:31px;">+ / -</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "lockfreehashmap";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>
