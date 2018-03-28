@@ -69,9 +69,36 @@ pub struct LockFreeHashMap<'v, K, V: 'v, S = RandomState> {
     inner: AtomicBox<MapInner<'v,K,V,S>>,
 }
 
-impl<'v, K, V, S> LockFreeHashMap<'v,K,V,S> {
+impl<'v, K, V, S> LockFreeHashMap<'v,K,V,S>
+    where K: Hash + Eq,
+          V: PartialEq,
+          S: ::std::hash::BuildHasher + Clone,
+{
     /// The default size of a new `LockFreeHashMap` when created by `LockFreeHashMap::new()`.
     pub const DEFAULT_CAPACITY: usize = 8;
+
+    /// Creates an empty `LockFreeHashMap` with the specified capacity, using `hasher` to hash the
+    /// keys.
+    ///
+    /// The hash map will be able to hold at least `capacity` elements without
+    /// reallocating. If `capacity` is 0, the hash map will use the next power of 2 (i.e. 1).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use lockfreehashmap::LockFreeHashMap;
+    /// use std::collections::hash_map::RandomState;
+    ///
+    /// let s = RandomState::new();
+    /// let mut map = LockFreeHashMap::with_capacity_and_hasher(10, s);
+    /// let guard = lockfreehashmap::pin();
+    /// map.insert(1, 2, &guard);
+    /// ```
+    pub fn with_capacity_and_hasher(capacity: usize, hasher: S) -> Self {
+        LockFreeHashMap {
+            inner: AtomicBox::new(MapInner::with_capacity_and_hasher(capacity, hasher))
+        }
+    }
 }
 
 impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v,K,V> {

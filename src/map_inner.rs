@@ -388,7 +388,7 @@ pub struct MapInner<'v, K, V: 'v, S = RandomState> {
 
 impl<'v, K, V, S> MapInner<'v, K, V, S> {
     /// The default size of a new `LockFreeHashMap`.
-    pub const DEFAULT_CAPACITY: usize = ::LockFreeHashMap::<K, V, S>::DEFAULT_CAPACITY;
+    pub const DEFAULT_CAPACITY: usize = ::LockFreeHashMap::<(), (), RandomState>::DEFAULT_CAPACITY;
 
     /// Drops `self.newer_map` and any newer maps that `self.newer_map` points to.
     pub unsafe fn drop_newer_maps(&self, guard: &Guard) {
