@@ -511,17 +511,17 @@ mod test {
                                 valid_states[key].1[value].clone(),
                                 &guard)
                             {
-                                assert!(valid_states[key].1.binary_search(previous).is_ok());
+                                valid_states[key].1.binary_search(previous).unwrap();
                             },
                             (1, key, _) => if let Some(previous) = map.remove(
                                 &valid_states[key].0, &guard)
                             {
-                                assert!(valid_states[key].1.binary_search(previous).is_ok());
+                                valid_states[key].1.binary_search(previous).unwrap();
                             },
                             (2, key, _) => if let Some(get) = map.get(
                                 &valid_states[key].0, &guard)
                             {
-                                assert!(valid_states[key].1.binary_search(get).is_ok());
+                                valid_states[key].1.binary_search(get).unwrap();
                             },
                             _ => unreachable!(),
                         }
