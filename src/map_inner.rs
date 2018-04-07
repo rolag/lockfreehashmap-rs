@@ -210,7 +210,7 @@ impl<'v, V> ValueSlot<'v, V> {
     }
 
     /// Returns true if and only if the `ValueSlot` has discriminant `SeeNewTable`.
-    pub fn is_tombprime(&self) -> bool {
+    pub fn is_seenewtable(&self) -> bool {
         match self {
             &ValueSlot::SeeNewTable => true,
             _ => false,
@@ -655,7 +655,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                         Ok(current) => {
                             // Successfully did (K,null) -> (K, X). Thus there's nothing more to do
                             // here, and we obviously don't need to free the null pointer.
-                            debug_assert!(current.deref().is_tombprime());
+                            debug_assert!(current.deref().is_seenewtable());
                             return;
                         },
                     }
@@ -681,7 +681,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                                 // Successfully did (K, T) -> (K, X). Remember that `old_value`
                                 // here is just the atomic pointer to the tombstone. However, all
                                 // `ValueSlot`s are behind pointers and therefore need to be freed.
-                                debug_assert!(_new.is_tombprime());
+                                debug_assert!(_new.is_seenewtable());
                                 unsafe { guard.defer(move || not_null.drop()); }
                                 return;
                             }
@@ -777,13 +777,13 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 primed_old_value_maybe, NotNullOwned::new(ValueSlot::SeeNewTable), guard
             ) {
                 Ok(_current) => {
-                    debug_assert!(_current.is_tombprime());
+                    debug_assert!(_current.is_seenewtable());
                     unsafe { primed_old_value_maybe.try_defer_drop(guard); }
                     break;
                 },
                 Err((current, _)) => {
                     debug_assert!(current.as_option()
-                        .map(|v| v.is_tombprime() || v.is_valueprime())
+                        .map(|v| v.is_seenewtable() || v.is_valueprime())
                         .expect("can't be null again")
                     );
                     primed_old_value_maybe = current;
@@ -950,7 +950,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             match old_value_slot.as_option() {
                 None => true,
                 Some(ref old_value) if old_value.is_tombstone() => true,
-                Some(ref old_value) if old_value.is_tombprime() => unreachable!(),
+                Some(ref old_value) if old_value.is_seenewtable() => unreachable!(),
                 Some(ref old_value) if old_value.is_valueprime() => unreachable!(),
                 Some(_) => false,
             }
@@ -965,7 +965,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             match old_value_slot.as_option() {
                 None => false,
                 Some(ref old_value) if old_value.is_tombstone() => false,
-                Some(ref old_value) if old_value.is_tombprime() => unreachable!(),
+                Some(ref old_value) if old_value.is_seenewtable() => unreachable!(),
                 Some(ref old_value) if old_value.is_valueprime() => unreachable!(),
                 Some(_) => true,
             }
