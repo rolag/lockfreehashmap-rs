@@ -10,8 +10,11 @@
     <title>lockfreehashmap - Rust</title>
 
     <link rel="stylesheet" type="text/css" href="../normalize.css">
-    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
-    <link rel="stylesheet" type="text/css" href="../main.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../main.css" id="themeStyle">
+    <script src="../storage.js"></script>
     
 
     
@@ -30,9 +33,16 @@
     <nav class="sidebar">
         <div class="sidebar-menu">&#9776;</div>
         
-        <p class='location'>Crate lockfreehashmap</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Reexports</a></li><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#constants">Constants</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'lockfreehashmap', ty: 'mod', relpath: '../'};</script></div>
+        <p class='location'>Crate lockfreehashmap</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#constants">Constants</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'lockfreehashmap', ty: 'mod', relpath: '../'};</script></div>
     </nav>
 
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
     <nav class="sub">
         <form class="search-form js-only">
             <div class="search-container">
@@ -51,9 +61,7 @@
                    </a>
                </span><a class='srclink' href='../src/lockfreehashmap/lib.rs.html#17-534' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>LockFreeHashMap</p>
-
 <p>This is an implementation of the lock-free hash map created by Dr. Cliff Click.</p>
-
 <p>Originally, this implementation
 <a href="https://github.com/boundary/high-scale-lib/blob/master/src/main/java/org/cliffc/high_scale_lib/NonBlockingHashMap.java">here</a>
 and
@@ -62,14 +70,12 @@ was created for Java, using garbage collection where necessary.
 This library is a Rust implementation, using epoch-based memory management to compensate for
 the lack of garbage collection.
 The <code>crossbeam</code> crate is used for epoch-based memory management.</p>
-
-<p>For details on the hash map&#39;s design and implementation, see the (private) [map_inner] module.</p>
-
-<p>At the time of writing, other concurrent hash maps available don&#39;t appear to allow reading and
+<p>For details on the hash map's design and implementation, see the (private) [map_inner] module.</p>
+<p>At the time of writing, other concurrent hash maps available don't appear to allow reading and
 writing at the same time. This map does.
 Effectively, this map has the same guarantees as having a certain amount of global variables
 that can be changed atomically.</p>
-</div><h2 id='reexports' class='section-header'><a href="#reexports">Reexports</a></h2>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
 <table><tr><td><code>extern crate <a class="mod" href="https://doc.rust-lang.org/nightly/std/index.html" title="mod std">std</a> as std;</code></td></tr><tr><td><code>extern crate crossbeam_epoch;</code></td></tr><tr><td><code>extern crate crossbeam_utils as crossbeam;</code></td></tr><tr><td><code>use std::prelude::v1::*;</code></td></tr><tr><td><code>use std::borrow::<a class="trait" href="https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>;</code></td></tr><tr><td><code>use std::collections::hash_map::<a class="struct" href="https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.RandomState.html" title="struct std::collections::hash::map::RandomState">RandomState</a>;</code></td></tr><tr><td><code>use std::<a class="mod" href="https://doc.rust-lang.org/nightly/alloc/fmt/index.html" title="mod alloc::fmt">fmt</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.BuildHasher.html" title="trait core::hash::BuildHasher">BuildHasher</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html" title="trait core::hash::Hash">Hash</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../lockfreehashmap/atomic/struct.AtomicBox.html" title="struct lockfreehashmap::atomic::AtomicBox">AtomicBox</a>;</code></td></tr><tr><td><code>use map_inner::<a class="enum" href="../lockfreehashmap/map_inner/enum.KeyCompare.html" title="enum lockfreehashmap::map_inner::KeyCompare">KeyCompare</a>;</code></td></tr><tr><td><code>use map_inner::<a class="struct" href="../lockfreehashmap/map_inner/struct.MapInner.html" title="struct lockfreehashmap::map_inner::MapInner">MapInner</a>;</code></td></tr><tr><td><code>use map_inner::<a class="enum" href="../lockfreehashmap/map_inner/enum.Match.html" title="enum lockfreehashmap::map_inner::Match">Match</a>;</code></td></tr><tr><td><code>use map_inner::<a class="enum" href="../lockfreehashmap/map_inner/enum.PutValue.html" title="enum lockfreehashmap::map_inner::PutValue">PutValue</a>;</code></td></tr><tr><td><code>use map_inner::<a class="enum" href="../lockfreehashmap/map_inner/enum.ValueSlot.html" title="enum lockfreehashmap::map_inner::ValueSlot">ValueSlot</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
 <table>
                        <tr class=' module-item'>
@@ -84,6 +90,7 @@ that can be changed atomically.</p>
                                   title='mod lockfreehashmap::map_inner'>map_inner</a></td>
                            <td class='docblock-short'>
                                 <p>This module implements most of the logic behind the [::LockFreeHashMap].</p>
+
                            </td>
                        </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
@@ -92,6 +99,7 @@ that can be changed atomically.</p>
                                   title='struct lockfreehashmap::Guard'>Guard</a></td>
                            <td class='docblock-short'>
                                 <p>A guard that keeps the current thread pinned.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -122,6 +130,7 @@ that can be changed atomically.</p>
                                   title='fn lockfreehashmap::pin'>pin</a></td>
                            <td class='docblock-short'>
                                 <p>Pins the current thread.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -129,6 +138,7 @@ that can be changed atomically.</p>
                                   title='fn lockfreehashmap::scope'>scope</a></td>
                            <td class='docblock-short'>
                                 <p>Create a new <code>scope</code>, for deferred destructors.</p>
+
                            </td>
                        </tr></table></section>
     <section id='search' class="content hidden"></section>
@@ -143,20 +153,22 @@ that can be changed atomically.</p>
                 <h2>Keyboard Shortcuts</h2>
 
                 <dl>
-                    <dt>?</dt>
+                    <dt><kbd>?</kbd></dt>
                     <dd>Show this help dialog</dd>
-                    <dt>S</dt>
+                    <dt><kbd>S</kbd></dt>
                     <dd>Focus the search field</dd>
-                    <dt>↑</dt>
+                    <dt><kbd>↑</kbd></dt>
                     <dd>Move up in search results</dd>
-                    <dt>↓</dt>
+                    <dt><kbd>↓</kbd></dt>
                     <dd>Move down in search results</dd>
-                    <dt>↹</dt>
+                    <dt><kbd>↹</kbd></dt>
                     <dd>Switch tab</dd>
-                    <dt>&#9166;</dt>
+                    <dt><kbd>&#9166;</kbd></dt>
                     <dd>Go to active search result</dd>
-                    <dt style="width:31px;">+ / -</dt>
-                    <dd>Collapse/expand all sections</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
                 </dl>
             </div>
 

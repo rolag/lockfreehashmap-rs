@@ -10,8 +10,11 @@
     <title>lockfreehashmap::map_inner - Rust</title>
 
     <link rel="stylesheet" type="text/css" href="../../normalize.css">
-    <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
-    <link rel="stylesheet" type="text/css" href="../../main.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
     
 
     
@@ -30,9 +33,16 @@
     <nav class="sidebar">
         <div class="sidebar-menu">&#9776;</div>
         
-        <p class='location'>Module map_inner</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Reexports</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'><a href='../index.html'>lockfreehashmap</a></p><script>window.sidebarCurrent = {name: 'map_inner', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
+        <p class='location'>Module map_inner</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'><a href='../index.html'>lockfreehashmap</a></p><script>window.sidebarCurrent = {name: 'map_inner', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div>
     </nav>
 
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
     <nav class="sub">
         <form class="search-form js-only">
             <div class="search-container">
@@ -49,74 +59,40 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a class='srclink' href='../../src/lockfreehashmap/map_inner.rs.html#17-1199' title='goto source code'>[src]</a></span></h1>
+               </span><a class='srclink' href='../../src/lockfreehashmap/map_inner.rs.html#17-1190' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>This module implements most of the logic behind the [::LockFreeHashMap].</p>
-
 <p>The talk that Dr. Click gave is available <a href="https://www.youtube.com/watch?v=HJ-719EGIts">here</a>.
 However, the information below should ideally be enough to understand all the necessary code.</p>
-
 <p>The Rust standard library has an implementation of a <a href="::std::collections::HashMap">HashMap</a>.
 However, to use it concurrently (and safely), one must put a <a href="::std::sync::Mutex">lock</a> on it.
 This is very inefficient and can lead to deadlocks.
 In order to make something lock-free, at least one thread has to make progress after some time.
 One of the main advantages of using lock-free structures is to avoid deadlocks and livelocks.
 Concurrent algorithms typically make use of the atomic operation &quot;compare and swap&quot; (CAS),
-    which atomically swaps one value for another
-    only if the current value is equal to an expected value.
+which atomically swaps one value for another
+only if the current value is equal to an expected value.
 (They can also equivalently use Load Linked/Store Conditional)
 Considering that a hash map stores a key/value pair (i.e. a key with some associated value),
-    it is important that a key is always associated with a value it&#39;s supposed to be associated
-    to.
+it is important that a key is always associated with a value it's supposed to be associated
+to.
 This means avoiding an inconsistent state where you have a key/value pair <code>(K, V)</code>,
-    where <code>V</code> could never be associated with <code>K</code>.
+where <code>V</code> could never be associated with <code>K</code>.
 Lock-free hash maps have use cases in databases, web caching and large-scale business programs.</p>
-
-<h1 id='guarantees' class='section-header'><a href='#guarantees'>Guarantees</a></h1>
+<h1 id="guarantees" class="section-header"><a href="#guarantees">Guarantees</a></h1>
 <ul>
 <li>This map has the same &quot;guarantees&quot; as simply having some number of global variables
 that can be updated atomically.</li>
 <li><code>O(n)</code> time complexity, like any hash map.</li>
 </ul>
-
-<h1 id='valid-states' class='section-header'><a href='#valid-states'>Valid States</a></h1>
-<h2 id='key-for-state-diagram' class='section-header'><a href='#key-for-state-diagram'>Key for State Diagram</a></h2>
-<table>
-<thead>
-<tr>
-<th>Value</th>
-<th>Meaning</th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td>∅/null</td>
-<td>Empty; No value here.</td>
-</tr>
-<tr>
-<td>K</td>
-<td>A key is here.</td>
-</tr>
-<tr>
-<td>X</td>
-<td>This key slot is taken because there is a newer table available.</td>
-</tr>
-<tr>
-<td>V</td>
-<td>A value is here.</td>
-</tr>
-<tr>
-<td>V&#39;</td>
-<td>A value is here but the table is currently being resized.</td>
-</tr>
-<tr>
-<td>T</td>
-<td>Value was removed.</td>
-</tr>
-</tbody>
-</table>
-
-<h2 id='state-diagram' class='section-header'><a href='#state-diagram'>State Diagram</a></h2>
+<h1 id="valid-states" class="section-header"><a href="#valid-states">Valid States</a></h1><h2 id="key-for-state-diagram" class="section-header"><a href="#key-for-state-diagram">Key for State Diagram</a></h2><table><thead><tr><th> Value  </th><th> Meaning                                                           </th></tr></thead><tbody>
+<tr><td> ∅/null </td><td> Empty; No value here.                                             </td></tr>
+<tr><td>   K    </td><td> A key is here.                                                    </td></tr>
+<tr><td>   X    </td><td> This key slot is taken because there is a newer table available.  </td></tr>
+<tr><td>   V    </td><td> A value is here.                                                  </td></tr>
+<tr><td>   V'   </td><td> A value is here but the table is currently being resized.         </td></tr>
+<tr><td>   T    </td><td> Value was removed.                                                </td></tr>
+</tbody></table>
+<h2 id="state-diagram" class="section-header"><a href="#state-diagram">State Diagram</a></h2>
 <pre><code class="language-text">  (∅, ∅) ---------&gt; (X, ∅)
      |
      |
@@ -125,79 +101,79 @@ that can be updated atomically.</li>
      |                 |                |
      |                 |                |
      |                \|/              \|/
-     |              (K, V&#39;) -------&gt; (K, X)
+     |              (K, V') -------&gt; (K, X)
      |                                 /|\
      |                                  |
      └----------------------------------┘
 </code></pre>
-
 <p>From this diagram,
-    you can see that once a key slot is taken,
-    it will always point to that key and only that key.
+you can see that once a key slot is taken,
+it will always point to that key and only that key.
 Therefore,
-    if you have two threads (thread 1, thread 2)
-    inserting <code>(K1, V1)</code> and <code>(K2, V2)</code> respectively,
-    where <code>hash(K1) == hash(K2) == 5 (for example)</code>,
-    and <code>K1 != K2</code>,
-    and the array containing the key/value pairs is <code>(null, null)</code> at index 5.
+if you have two threads (thread 1, thread 2)
+inserting <code>(K1, V1)</code> and <code>(K2, V2)</code> respectively,
+where <code>hash(K1) == hash(K2) == 5 (for example)</code>,
+and <code>K1 != K2</code>,
+and the array containing the key/value pairs is <code>(null, null)</code> at index 5.
 Then one of the threads, e.g. thread 1,
-    will perform the transition <code>(null, null) -&gt; (K1, null)</code> at array index 5,
-    allowing it afterwards to insert its value <code>V1</code>,
+will perform the transition <code>(null, null) -&gt; (K1, null)</code> at array index 5,
+allowing it afterwards to insert its value <code>V1</code>,
 The other thread needs to continue probing (at index 6, 7, ...) to find a different key slot.
 If another thread (thread 3) already inserted a key <code>K2</code> at some index after 5,
-    then obviously thread 2 does not need to insert its key into the map at all.
+then obviously thread 2 does not need to insert its key into the map at all.
 Thus, there are no inconsistent states where you have a value that is paired with a key
-    that it&#39;s not associated to.</p>
-
-<h2 id='resizing' class='section-header'><a href='#resizing'>Resizing</a></h2>
+that it's not associated to.</p>
+<h2 id="resizing" class="section-header"><a href="#resizing">Resizing</a></h2>
 <p>To resize the map,
-    a new bigger array needs to be allocated
-    and all the key/value pairs
-    have to be moved from their current slots in the current array
-    into slots in the new array.
+a new bigger array needs to be allocated
+and all the key/value pairs
+have to be moved from their current slots in the current array
+into slots in the new array.
 Because other threads can call <code>insert()</code> and <code>remove()</code> while the key/value pairs are moved,
-    there needs to be some way of determining what order this happened in
-    and how to copy the slot into the newer table.
+there needs to be some way of determining what order this happened in
+and how to copy the slot into the newer table.
 This is done by having any calls that try to access the current slot try and help complete
-    the copy if they find a <code>V&#39;</code> value.
+the copy if they find a <code>V'</code> value.
 So if a thread calls e.g. <code>get()</code> while this is happening,
-    it needs to copy the current slot into the new map before returning.
-(As an implementation detail, it also helps to copy other slots while it&#39;s at it.)</p>
-
+it needs to copy the current slot into the new map before returning.
+(As an implementation detail, it also helps to copy other slots while it's at it.)</p>
 <p>This is actually different to the exact algorithm that Click described,
-    but it appears to achieve the same goals as his.</p>
-
-<p>The transitions necessary in both the old and new map are shown below:
-<code>text Transition# | [1] | [2] | [3] | [4] Old Map | (K, V) -&gt; (K, V&#39;) | | | (K, V&#39;) -&gt; (K, X) New Map | | (∅, ∅) -&gt; (K, ∅) | (K, ∅) -&gt; (K, V) |</code>
-- Transition [1] marks the value slot as being copied.
-  If another thread tries to access it while it&#39;s <code>V&#39;</code>,
-      then it must help complete copying this key/value pair into the newer map.
-  Note that if V is actually null or <code>T</code>,
-      we can simply set it to <code>X</code>
-      and skip inserting a tombstone/null value into the newer map,
-      which just wastes a key slot.
-- Transition [2] and [3] copy the old value into the new map.
-  They are separate states to remind you that separate threads can perform either.
-  If inserting it fails,
-    then we know that some thread didn&#39;t care about the current value
-    and just <code>insert()</code>ed a new value anyway.
-  This is fine and just means that <code>V</code> needs to be deallocated.
-  This is because if the slot wasn&#39;t being copied,
-    it would have overridden the current <code>V</code> with another,
-    which would have ended up being copied into the newer table afterwards.
-- Finally, transition [4] completes the copy by marking the valueslot as <code>X</code>,
-    meaning there could be something here (or not)
-    but you need to see the newer table to find out.</p>
-
+but it appears to achieve the same goals as his.</p>
+<p>The transitions necessary in both the old and new map are shown below:</p>
+<pre><code class="language-text">Transition# |        [1]        |        [2]       |        [3]       |         [4]
+Old Map     | (K, V) -&gt; (K, V') |                  |                  | (K, V') -&gt; (K, X)
+New Map     |                   | (∅, ∅) -&gt; (K, ∅) | (K, ∅) -&gt; (K, V) |
+</code></pre>
+<ul>
+<li>Transition [1] marks the value slot as being copied.
+If another thread tries to access it while it's <code>V'</code>,
+then it must help complete copying this key/value pair into the newer map.
+Note that if V is actually null or <code>T</code>,
+we can simply set it to <code>X</code>
+and skip inserting a tombstone/null value into the newer map,
+which just wastes a key slot.</li>
+<li>Transition [2] and [3] copy the old value into the new map.
+They are separate states to remind you that separate threads can perform either.
+If inserting it fails,
+then we know that some thread didn't care about the current value
+and just <code>insert()</code>ed a new value anyway.
+This is fine and just means that <code>V</code> needs to be deallocated.
+This is because if the slot wasn't being copied,
+it would have overridden the current <code>V</code> with another,
+which would have ended up being copied into the newer table afterwards.</li>
+<li>Finally, transition [4] completes the copy by marking the valueslot as <code>X</code>,
+meaning there could be something here (or not)
+but you need to see the newer table to find out.</li>
+</ul>
 <p>If multiple threads are trying to <code>replace()</code> data at index <code>i</code> in the map,
-    they have to either do it before transition [1] happens,
-    or after transition [4] happens.
+they have to either do it before transition [1] happens,
+or after transition [4] happens.
 The main goal of this data structure is to be completely lock-free/non-blocking.
 Therefore, instead of looping and waiting until all transitions have finished,
-    which is essentially a blocking algorithm,
-    each thread can help make progress by doing any (or all) of the 4 transitions above.</p>
-</div><h2 id='reexports' class='section-header'><a href="#reexports">Reexports</a></h2>
-<table><tr><td><code>use crossbeam_epoch::<a class="struct" href="../../lockfreehashmap/struct.Guard.html" title="struct lockfreehashmap::Guard">Guard</a>;</code></td></tr><tr><td><code>use crossbeam_epoch::Shared;</code></td></tr><tr><td><code>use std::borrow::<a class="trait" href="https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>;</code></td></tr><tr><td><code>use std::collections::hash_map::<a class="struct" href="https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.RandomState.html" title="struct std::collections::hash::map::RandomState">RandomState</a>;</code></td></tr><tr><td><code>use std::<a class="mod" href="https://doc.rust-lang.org/nightly/alloc/fmt/index.html" title="mod alloc::fmt">fmt</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.BuildHasher.html" title="trait core::hash::BuildHasher">BuildHasher</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html" title="trait core::hash::Hash">Hash</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>;</code></td></tr><tr><td><code>use std::num::<a class="struct" href="https://doc.rust-lang.org/nightly/core/num/struct.Wrapping.html" title="struct core::num::Wrapping">Wrapping</a>;</code></td></tr><tr><td><code>use std::sync::atomic::<a class="struct" href="https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html" title="struct core::sync::atomic::AtomicUsize">AtomicUsize</a>;</code></td></tr><tr><td><code>use std::sync::atomic::<a class="enum" href="https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html" title="enum core::sync::atomic::Ordering">Ordering</a>;</code></td></tr><tr><td><code>use std::time::<a class="struct" href="https://doc.rust-lang.org/nightly/std/time/duration/struct.Duration.html" title="struct std::time::duration::Duration">Duration</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.AtomicBox.html" title="struct lockfreehashmap::atomic::AtomicBox">AtomicBox</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.AtomicPtr.html" title="struct lockfreehashmap::atomic::AtomicPtr">AtomicPtr</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.MaybeNull.html" title="struct lockfreehashmap::atomic::MaybeNull">MaybeNull</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.NotNull.html" title="struct lockfreehashmap::atomic::NotNull">NotNull</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.NotNullOwned.html" title="struct lockfreehashmap::atomic::NotNullOwned">NotNullOwned</a>;</code></td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+which is essentially a blocking algorithm,
+each thread can help make progress by doing any (or all) of the 4 transitions above.</p>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>use crossbeam_epoch::<a class="struct" href="../../lockfreehashmap/struct.Guard.html" title="struct lockfreehashmap::Guard">Guard</a>;</code></td></tr><tr><td><code>use crossbeam_epoch::Shared;</code></td></tr><tr><td><code>use std::borrow::<a class="trait" href="https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>;</code></td></tr><tr><td><code>use std::collections::hash_map::<a class="struct" href="https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.RandomState.html" title="struct std::collections::hash::map::RandomState">RandomState</a>;</code></td></tr><tr><td><code>use std::<a class="mod" href="https://doc.rust-lang.org/nightly/alloc/fmt/index.html" title="mod alloc::fmt">fmt</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.BuildHasher.html" title="trait core::hash::BuildHasher">BuildHasher</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html" title="trait core::hash::Hash">Hash</a>;</code></td></tr><tr><td><code>use std::hash::<a class="trait" href="https://doc.rust-lang.org/nightly/core/hash/trait.Hasher.html" title="trait core::hash::Hasher">Hasher</a>;</code></td></tr><tr><td><code>use std::num::<a class="struct" href="https://doc.rust-lang.org/nightly/core/num/struct.Wrapping.html" title="struct core::num::Wrapping">Wrapping</a>;</code></td></tr><tr><td><code>use std::sync::atomic::<a class="struct" href="https://doc.rust-lang.org/nightly/core/sync/atomic/struct.AtomicUsize.html" title="struct core::sync::atomic::AtomicUsize">AtomicUsize</a>;</code></td></tr><tr><td><code>use std::sync::atomic::<a class="enum" href="https://doc.rust-lang.org/nightly/core/sync/atomic/enum.Ordering.html" title="enum core::sync::atomic::Ordering">Ordering</a>;</code></td></tr><tr><td><code>use std::time::<a class="struct" href="https://doc.rust-lang.org/nightly/core/time/struct.Duration.html" title="struct core::time::Duration">Duration</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.AtomicBox.html" title="struct lockfreehashmap::atomic::AtomicBox">AtomicBox</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.AtomicPtr.html" title="struct lockfreehashmap::atomic::AtomicPtr">AtomicPtr</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.MaybeNull.html" title="struct lockfreehashmap::atomic::MaybeNull">MaybeNull</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.NotNull.html" title="struct lockfreehashmap::atomic::NotNull">NotNull</a>;</code></td></tr><tr><td><code>use atomic::<a class="struct" href="../../lockfreehashmap/atomic/struct.NotNullOwned.html" title="struct lockfreehashmap::atomic::NotNullOwned">NotNullOwned</a>;</code></td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                        <tr class=' module-item'>
                            <td><a class="struct" href="struct.MapInner.html"
@@ -207,6 +183,7 @@ Therefore, instead of looping and waiting until all transitions have finished,
 resized, a new <code>MapInner</code> must be created and its Key/Value pairs must be copied from this one.
 Logically, this struct owns its keys and values, and so is responsible for freeing them when
 dropped.</p>
+
                            </td>
                        </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
 <table>
@@ -216,6 +193,7 @@ dropped.</p>
                            <td class='docblock-short'>
                                 <p>Sometimes when calling <code>put_if_match()</code> we want to insert a key and sometimes we just want to
 compare it with some variable of type <code>Q</code>. This enum represents which one is intended.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -225,6 +203,7 @@ compare it with some variable of type <code>Q</code>. This enum represents which
                                 <p>The hash map is implemented as an array of key-value pairs, where each key and value can be one
 of several states. This enum represents the various states that a key can be in, excluding the
 null/empty state.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -233,6 +212,7 @@ null/empty state.</p>
                            <td class='docblock-short'>
                                 <p>Sometimes, when inserting a new value into the hash map, we only want to insert something if
 the value already matches something.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -241,6 +221,7 @@ the value already matches something.</p>
                            <td class='docblock-short'>
                                 <p>This enum represents the value to insert when calling <code>put_if_match()</code>, which is usually owned
 when called from <code>LockFreeHashMap</code> and shared if its been copied from a previous, smaller map.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -248,6 +229,7 @@ when called from <code>LockFreeHashMap</code> and shared if its been copied from
                                   title='enum lockfreehashmap::map_inner::QRef'>QRef</a></td>
                            <td class='docblock-short'>
                                 <p>See <code>KeyCompare::as_qref()</code> for the motivation behind this type.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -255,6 +237,7 @@ when called from <code>LockFreeHashMap</code> and shared if its been copied from
                                   title='enum lockfreehashmap::map_inner::QRef2'>QRef2</a></td>
                            <td class='docblock-short'>
                                 <p>See <code>KeyCompare::as_qref()</code> for the motivation behind this type.</p>
+
                            </td>
                        </tr>
                        <tr class=' module-item'>
@@ -264,6 +247,7 @@ when called from <code>LockFreeHashMap</code> and shared if its been copied from
                                 <p>The hash map is implemented as an array of key-value pairs, where each key and value can be one
 of several states. This enum represents the various states that a value can be in, excluding
 the null/empty state.</p>
+
                            </td>
                        </tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
 <table>
@@ -286,20 +270,22 @@ the null/empty state.</p>
                 <h2>Keyboard Shortcuts</h2>
 
                 <dl>
-                    <dt>?</dt>
+                    <dt><kbd>?</kbd></dt>
                     <dd>Show this help dialog</dd>
-                    <dt>S</dt>
+                    <dt><kbd>S</kbd></dt>
                     <dd>Focus the search field</dd>
-                    <dt>↑</dt>
+                    <dt><kbd>↑</kbd></dt>
                     <dd>Move up in search results</dd>
-                    <dt>↓</dt>
+                    <dt><kbd>↓</kbd></dt>
                     <dd>Move down in search results</dd>
-                    <dt>↹</dt>
+                    <dt><kbd>↹</kbd></dt>
                     <dd>Switch tab</dd>
-                    <dt>&#9166;</dt>
+                    <dt><kbd>&#9166;</kbd></dt>
                     <dd>Go to active search result</dd>
-                    <dt style="width:31px;">+ / -</dt>
-                    <dd>Collapse/expand all sections</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
                 </dl>
             </div>
 

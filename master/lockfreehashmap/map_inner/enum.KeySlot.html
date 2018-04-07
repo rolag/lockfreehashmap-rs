@@ -10,8 +10,11 @@
     <title>lockfreehashmap::map_inner::KeySlot - Rust</title>
 
     <link rel="stylesheet" type="text/css" href="../../normalize.css">
-    <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
-    <link rel="stylesheet" type="text/css" href="../../main.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
     
 
     
@@ -33,6 +36,13 @@
         <p class='location'>Enum KeySlot</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#variants">Variants</a><div class="sidebar-links"><a href="#variant.Key">Key</a><a href="#variant.SeeNewTable">SeeNewTable</a></div><a class="sidebar-title" href="#implementations">Trait Implementations</a><div class="sidebar-links"><a href="#impl-Debug">Debug</a></div></div><p class='location'><a href='../index.html'>lockfreehashmap</a>::<wbr><a href='index.html'>map_inner</a></p><script>window.sidebarCurrent = {name: 'KeySlot', ty: 'enum', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
     </nav>
 
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
     <nav class="sub">
         <form class="search-form js-only">
             <div class="search-container">
@@ -58,10 +68,10 @@ of several states. This enum represents the various states that a key can be in,
 null/empty state.</p>
 </div><h2 id='variants' class='variants small-section-header'>
                    Variants<a href='#variants' class='anchor'></a></h2>
-<span id="variant.Key" class="variant small-section-header"><a href="#variant.Key" class="anchor field"></a><span id='Key.v' class='invisible'><code>Key(K)</code></span></span><div class='docblock'><p>A key has been inserted into table. The key&#39;s associated value may or may not have been
-removed. Once a key is in this state it can&#39;t go into any other state.</p>
+<span id="variant.Key" class="variant small-section-header"><a href="#variant.Key" class="anchor field"></a><span id='Key.v' class='invisible'><code>Key(K)</code></span></span><div class='docblock'><p>A key has been inserted into table. The key's associated value may or may not have been
+removed. Once a key is in this state it can't go into any other state.</p>
 </div><span id="variant.SeeNewTable" class="variant small-section-header"><a href="#variant.SeeNewTable" class="anchor field"></a><span id='SeeNewTable.v' class='invisible'><code>SeeNewTable</code></span></span><div class='docblock'><p>This was an empty slot that is now taken. There is a newer (resized) table that should be
-used if this key slot was needed. Once a key is in this state it can&#39;t go into any other
+used if this key slot was needed. Once a key is in this state it can't go into any other
 state.</p>
 </div>
             <h2 id='implementations' class='small-section-header'>
@@ -83,20 +93,22 @@ state.</p>
                 <h2>Keyboard Shortcuts</h2>
 
                 <dl>
-                    <dt>?</dt>
+                    <dt><kbd>?</kbd></dt>
                     <dd>Show this help dialog</dd>
-                    <dt>S</dt>
+                    <dt><kbd>S</kbd></dt>
                     <dd>Focus the search field</dd>
-                    <dt>↑</dt>
+                    <dt><kbd>↑</kbd></dt>
                     <dd>Move up in search results</dd>
-                    <dt>↓</dt>
+                    <dt><kbd>↓</kbd></dt>
                     <dd>Move down in search results</dd>
-                    <dt>↹</dt>
+                    <dt><kbd>↹</kbd></dt>
                     <dd>Switch tab</dd>
-                    <dt>&#9166;</dt>
+                    <dt><kbd>&#9166;</kbd></dt>
                     <dd>Go to active search result</dd>
-                    <dt style="width:31px;">+ / -</dt>
-                    <dd>Collapse/expand all sections</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
                 </dl>
             </div>
 

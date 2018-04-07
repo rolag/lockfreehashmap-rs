@@ -10,8 +10,11 @@
     <title>map_inner.rs.html -- source</title>
 
     <link rel="stylesheet" type="text/css" href="../../normalize.css">
-    <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
-    <link rel="stylesheet" type="text/css" href="../../main.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../../dark.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css" id="themeStyle">
+    <script src="../../storage.js"></script>
     
 
     
@@ -33,6 +36,13 @@
         
     </nav>
 
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../../theme.js"></script>
     <nav class="sub">
         <form class="search-form js-only">
             <div class="search-container">
@@ -1235,15 +1245,6 @@
 <span id="1189">1189</span>
 <span id="1190">1190</span>
 <span id="1191">1191</span>
-<span id="1192">1192</span>
-<span id="1193">1193</span>
-<span id="1194">1194</span>
-<span id="1195">1195</span>
-<span id="1196">1196</span>
-<span id="1197">1197</span>
-<span id="1198">1198</span>
-<span id="1199">1199</span>
-<span id="1200">1200</span>
 </pre><pre class="rust ">
 <span class="comment">// LockFreeHashMap -- A concurrent, lock-free hash map for Rust.</span>
 <span class="comment">// Copyright (C) 2018  rolag</span>
@@ -1457,7 +1458,7 @@
     }
 
     <span class="doccomment">/// Returns true if and only if the `ValueSlot` has discriminant `SeeNewTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_tombprime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_seenewtable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">bool</span> {
         <span class="kw">match</span> <span class="self">self</span> {
             <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">SeeNewTable</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
             _ <span class="op">=&gt;</span> <span class="bool-val">false</span>,
@@ -1902,7 +1903,7 @@
                         <span class="prelude-val">Ok</span>(<span class="ident">current</span>) <span class="op">=&gt;</span> {
                             <span class="comment">// Successfully did (K,null) -&gt; (K, X). Thus there&#39;s nothing more to do</span>
                             <span class="comment">// here, and we obviously don&#39;t need to free the null pointer.</span>
-                            <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">current</span>.<span class="ident">deref</span>().<span class="ident">is_tombprime</span>());
+                            <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">current</span>.<span class="ident">deref</span>().<span class="ident">is_seenewtable</span>());
                             <span class="kw">return</span>;
                         },
                     }
@@ -1928,7 +1929,7 @@
                                 <span class="comment">// Successfully did (K, T) -&gt; (K, X). Remember that `old_value`</span>
                                 <span class="comment">// here is just the atomic pointer to the tombstone. However, all</span>
                                 <span class="comment">// `ValueSlot`s are behind pointers and therefore need to be freed.</span>
-                                <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">_new</span>.<span class="ident">is_tombprime</span>());
+                                <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">_new</span>.<span class="ident">is_seenewtable</span>());
                                 <span class="kw">unsafe</span> { <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> <span class="ident">not_null</span>.<span class="ident">drop</span>()); }
                                 <span class="kw">return</span>;
                             }
@@ -2010,40 +2011,31 @@
             <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">atomic_key_slot</span>.<span class="ident">is_tagged</span>(<span class="ident">guard</span>));
             <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">atomic_value_slot</span>.<span class="ident">is_tagged</span>(<span class="ident">guard</span>));
             <span class="ident">atomic_key_slot</span>.<span class="ident">tag</span>(<span class="ident">guard</span>);
-            <span class="ident">atomic_value_slot</span>.<span class="ident">tag</span>(<span class="ident">guard</span>);
             <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">atomic_key_slot</span>.<span class="ident">is_tagged</span>(<span class="ident">guard</span>));
-            <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">atomic_value_slot</span>.<span class="ident">is_tagged</span>(<span class="ident">guard</span>));
         }
 
         <span class="comment">// Now we simply need to just do (K, V&#39;) -&gt; (K, X).</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">primed_old_value_maybe</span>: <span class="ident">MaybeNull</span><span class="op">&lt;</span>_<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">primed_old_value</span>.<span class="ident">as_maybe_null</span>();
-        <span class="kw">loop</span> {
-            <span class="comment">// FIXME: This doesn&#39;t have to be weak. But for some reason when this returns an Err</span>
-            <span class="comment">// value, it can still be V&#39; instead of X, even if it&#39;s strong CAS.</span>
-            <span class="kw">match</span> <span class="ident">atomic_value_slot</span>.<span class="ident">compare_and_set_owned_weak</span>(
-                <span class="ident">primed_old_value_maybe</span>, <span class="ident">NotNullOwned</span>::<span class="ident">new</span>(<span class="ident">ValueSlot</span>::<span class="ident">SeeNewTable</span>), <span class="ident">guard</span>
-            ) {
-                <span class="prelude-val">Ok</span>(<span class="ident">_current</span>) <span class="op">=&gt;</span> {
-                    <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">_current</span>.<span class="ident">is_tombprime</span>());
-                    <span class="kw">unsafe</span> { <span class="ident">primed_old_value_maybe</span>.<span class="ident">try_defer_drop</span>(<span class="ident">guard</span>); }
-                    <span class="kw">break</span>;
-                },
-                <span class="prelude-val">Err</span>((<span class="ident">current</span>, _)) <span class="op">=&gt;</span> {
-                    <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">current</span>.<span class="ident">as_option</span>()
-                        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">is_tombprime</span>() <span class="op">||</span> <span class="ident">v</span>.<span class="ident">is_valueprime</span>())
-                        .<span class="ident">expect</span>(<span class="string">&quot;can&#39;t be null again&quot;</span>)
-                    );
-                    <span class="ident">primed_old_value_maybe</span> <span class="op">=</span> <span class="ident">current</span>;
-                },
-            }
+        <span class="kw">let</span> <span class="ident">primed_old_value_maybe</span>: <span class="ident">MaybeNull</span><span class="op">&lt;</span>_<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">primed_old_value</span>.<span class="ident">as_maybe_null</span>();
+        <span class="kw">match</span> <span class="ident">atomic_value_slot</span>.<span class="ident">compare_and_set_owned</span>(
+            <span class="ident">primed_old_value_maybe</span>, <span class="ident">NotNullOwned</span>::<span class="ident">new</span>(<span class="ident">ValueSlot</span>::<span class="ident">SeeNewTable</span>), <span class="ident">guard</span>
+        ) {
+            <span class="prelude-val">Ok</span>(<span class="ident">_current</span>) <span class="op">=&gt;</span> {
+                <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">_current</span>.<span class="ident">is_seenewtable</span>());
+                <span class="kw">unsafe</span> { <span class="ident">primed_old_value_maybe</span>.<span class="ident">try_defer_drop</span>(<span class="ident">guard</span>); }
+            },
+            <span class="prelude-val">Err</span>((<span class="ident">current</span>, _)) <span class="op">=&gt;</span> {
+                <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">current</span>.<span class="ident">as_option</span>()
+                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">is_seenewtable</span>())
+                    .<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>),
+                    <span class="string">&quot;can&#39;t be null again&quot;</span>
+                );
+            },
         }
         <span class="comment">// This is only `Some` if we are the thread that did (K, V) -&gt; (K, V&#39;).</span>
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">original_value</span>) <span class="op">=</span> <span class="ident">original_valueslot_value</span> {
             <span class="kw">unsafe</span> { <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> {
                 <span class="comment">// We only want to drop this value if it was never copied to the new map.</span>
-                <span class="comment">// FIXME: so why is this `is_tagged()` rather than `!is_tagged()`?</span>
-                <span class="comment">//        If we negate this, is segfaults...</span>
-                <span class="kw">if</span> <span class="ident">atomic_value_slot</span>.<span class="ident">is_tagged</span>(<span class="ident">guard</span>) {
+                <span class="kw">if</span> <span class="op">!</span><span class="ident">atomic_key_slot</span>.<span class="ident">is_tagged</span>(<span class="ident">guard</span>) {
                     <span class="ident">original_value</span>.<span class="ident">drop</span>();
                 }
             })}
@@ -2197,7 +2189,7 @@
             <span class="kw">match</span> <span class="ident">old_value_slot</span>.<span class="ident">as_option</span>() {
                 <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="bool-val">true</span>,
                 <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_tombstone</span>() <span class="op">=&gt;</span> <span class="bool-val">true</span>,
-                <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_tombprime</span>() <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+                <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_seenewtable</span>() <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
                 <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_valueprime</span>() <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
                 <span class="prelude-val">Some</span>(_) <span class="op">=&gt;</span> <span class="bool-val">false</span>,
             }
@@ -2212,7 +2204,7 @@
             <span class="kw">match</span> <span class="ident">old_value_slot</span>.<span class="ident">as_option</span>() {
                 <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="bool-val">false</span>,
                 <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_tombstone</span>() <span class="op">=&gt;</span> <span class="bool-val">false</span>,
-                <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_tombprime</span>() <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+                <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_seenewtable</span>() <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
                 <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">old_value</span>) <span class="kw">if</span> <span class="ident">old_value</span>.<span class="ident">is_valueprime</span>() <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
                 <span class="prelude-val">Some</span>(_) <span class="op">=&gt;</span> <span class="bool-val">true</span>,
             }
@@ -2459,20 +2451,22 @@
                 <h2>Keyboard Shortcuts</h2>
 
                 <dl>
-                    <dt>?</dt>
+                    <dt><kbd>?</kbd></dt>
                     <dd>Show this help dialog</dd>
-                    <dt>S</dt>
+                    <dt><kbd>S</kbd></dt>
                     <dd>Focus the search field</dd>
-                    <dt>↑</dt>
+                    <dt><kbd>↑</kbd></dt>
                     <dd>Move up in search results</dd>
-                    <dt>↓</dt>
+                    <dt><kbd>↓</kbd></dt>
                     <dd>Move down in search results</dd>
-                    <dt>↹</dt>
+                    <dt><kbd>↹</kbd></dt>
                     <dd>Switch tab</dd>
-                    <dt>&#9166;</dt>
+                    <dt><kbd>&#9166;</kbd></dt>
                     <dd>Go to active search result</dd>
-                    <dt style="width:31px;">+ / -</dt>
-                    <dd>Collapse/expand all sections</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
                 </dl>
             </div>
 
