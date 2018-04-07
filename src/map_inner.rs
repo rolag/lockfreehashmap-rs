@@ -763,41 +763,31 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             debug_assert!(!atomic_key_slot.is_tagged(guard));
             debug_assert!(!atomic_value_slot.is_tagged(guard));
             atomic_key_slot.tag(guard);
-            atomic_value_slot.tag(guard);
             debug_assert!(atomic_key_slot.is_tagged(guard));
-            debug_assert!(atomic_value_slot.is_tagged(guard));
         }
 
         // Now we simply need to just do (K, V') -> (K, X).
-        let mut primed_old_value_maybe: MaybeNull<_> = primed_old_value.as_maybe_null();
-        loop {
-            // FIXME: This doesn't have to be weak. But for some reason when this returns an Err
-            // value, it can still be V' instead of X, even if it's strong CAS.
-            match atomic_value_slot.compare_and_set_owned_weak(
-                primed_old_value_maybe, NotNullOwned::new(ValueSlot::SeeNewTable), guard
-            ) {
-                Ok(_current) => {
-                    debug_assert!(_current.is_seenewtable());
-                    unsafe { primed_old_value_maybe.try_defer_drop(guard); }
-                    break;
-                },
-                Err((current, _)) => {
-                    debug_assert!(current.as_option()
-                        .map(|v| v.is_seenewtable() || v.is_valueprime())
-                        .unwrap_or(false),
-                        "can't be null again"
-                    );
-                    primed_old_value_maybe = current;
-                },
-            }
+        let primed_old_value_maybe: MaybeNull<_> = primed_old_value.as_maybe_null();
+        match atomic_value_slot.compare_and_set_owned(
+            primed_old_value_maybe, NotNullOwned::new(ValueSlot::SeeNewTable), guard
+        ) {
+            Ok(_current) => {
+                debug_assert!(_current.is_seenewtable());
+                unsafe { primed_old_value_maybe.try_defer_drop(guard); }
+            },
+            Err((current, _)) => {
+                debug_assert!(current.as_option()
+                    .map(|v| v.is_seenewtable())
+                    .unwrap_or(false),
+                    "can't be null again"
+                );
+            },
         }
         // This is only `Some` if we are the thread that did (K, V) -> (K, V').
         if let Some(original_value) = original_valueslot_value {
             unsafe { guard.defer(move || {
                 // We only want to drop this value if it was never copied to the new map.
-                // FIXME: so why is this `is_tagged()` rather than `!is_tagged()`?
-                //        If we negate this, is segfaults...
-                if atomic_value_slot.is_tagged(guard) {
+                if !atomic_key_slot.is_tagged(guard) {
                     original_value.drop();
                 }
             })}
