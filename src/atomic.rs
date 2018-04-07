@@ -337,6 +337,9 @@ mod test {
         ).unwrap();
         unsafe { guard.defer(move || current.drop()); }
         assert_eq!(*_ok, "third");
+        assert!(!ptr.is_tagged(&guard));
+        ptr.tag(&guard);
+        assert!(ptr.is_tagged(&guard));
         let inner = unsafe { ptr.take(&guard).unwrap() };
         assert_eq!(*inner, "third");
         drop(ptr);
