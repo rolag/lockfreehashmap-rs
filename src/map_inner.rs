@@ -784,7 +784,8 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 Err((current, _)) => {
                     debug_assert!(current.as_option()
                         .map(|v| v.is_seenewtable() || v.is_valueprime())
-                        .expect("can't be null again")
+                        .unwrap_or(false),
+                        "can't be null again"
                     );
                     primed_old_value_maybe = current;
                 },
