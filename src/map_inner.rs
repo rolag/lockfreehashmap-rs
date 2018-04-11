@@ -900,6 +900,11 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
         let len = self.capacity();
         for index in (initial_index..len).chain(0..initial_index) {
             let (ref atomic_key_slot, ref atomic_value_slot) = self.map[index];
+            // Early exit if neither the key nor value are fully inserted.
+            if !atomic_key_slot.relaxed_exists(&guard) || !atomic_value_slot.relaxed_exists(&guard)
+            {
+                return None;
+            }
             match &*atomic_key_slot.load(&guard).as_option()? {
                 &KeySlot::Key(ref k) => if self.keys_are_equal(k, key) {
                     match atomic_value_slot.load(&guard).as_option()?.deref() {
