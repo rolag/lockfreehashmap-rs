@@ -101,7 +101,9 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
     }
 
     /// Private helper method to load the `inner` field as a &[MapInner].
-    pub(crate) fn load_inner(&self, guard: &'guard Guard) -> &'guard MapInner<'v,K,V,S> {
+    pub(crate) fn load_inner<'s: 'guard>(&'s self, guard: &'guard Guard)
+        -> &'guard MapInner<'v,K,V,S>
+    {
         self.inner.load(&guard).deref()
     }
 
@@ -220,7 +222,7 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
     /// map.insert(1, 15, &guard);
     /// assert_eq!(map.get(&1, &guard), Some(&15));
     /// ```
-    pub fn get<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn get<'s: 'guard, Q: ?Sized>(&'s self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
     {
@@ -245,7 +247,8 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
     /// assert_eq!(map.insert(equal_key, "other".to_string(), &guard), Some(&"value".to_string()));
     /// // `map` now contains `key` as its key, rather than `equal_key`.
     /// ```
-    pub fn insert(&self, key: K, value: V, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn insert<'s: 'guard>(&'s self, key: K, value: V, guard: &'guard Guard)
+        -> Option<&'guard V>
     {
         let value_slot: Option<&ValueSlot<V>> = self.load_inner(guard).put_if_match(
             KeyCompare::new(key),
@@ -273,7 +276,8 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
     /// assert_eq!(map.insert(1, 1, &guard), None);
     /// assert_eq!(map.replace(&1, 3, &guard), Some(&1));
     /// ```
-    pub fn replace<Q: ?Sized>(&self, key: &Q, value: V, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn replace<'s: 'guard, Q: ?Sized>(&'s self, key: &Q, value: V, guard: &'guard Guard)
+        -> Option<&'guard V>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
     {
@@ -300,7 +304,8 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
     /// map.insert(1, 1, &guard);
     /// assert_eq!(map.remove(&1, &guard), Some(&1));
     /// ```
-    pub fn remove<Q: ?Sized>(&self, key: &Q, guard: &'guard Guard) -> Option<&'guard V>
+    pub fn remove<'s: 'guard, Q: ?Sized>(&'s self, key: &Q, guard: &'guard Guard)
+        -> Option<&'guard V>
         where K: Borrow<Q>,
               Q: Hash + Eq + PartialEq<K>,
     {
