@@ -253,14 +253,14 @@ pub enum Match {
 /// Sometimes when calling `put_if_match()` we want to insert a key and sometimes we just want to
 /// compare it with some variable of type `Q`. This enum represents which one is intended.
 pub enum KeyCompare<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
-    Owned(NotNullOwned<K>),
+    Owned(NotNullOwned<KeySlot<K>>),
     Shared(NotNull<'k, KeySlot<K>>),
     OnlyCompare(&'q Q),
 }
 
 impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> KeyCompare<'k, 'q, K, Q> {
     pub fn new(key: K) -> Self {
-        KeyCompare::Owned(NotNullOwned::new(key))
+        KeyCompare::Owned(NotNullOwned::new(KeySlot::Key(key)))
     }
     /// The purpose of this function is to ultimately get a value of type `&Q`.
     /// Because we need to call `deref()` and `borrow()` a few times, we need to put the result of
@@ -268,7 +268,7 @@ impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> KeyCompare<'k, 'q, K, Q> {
     /// introduced as helper types to place these values somewhere.
     fn as_qref(&self) -> QRef<K, Q> {
         match self {
-            &KeyCompare::Owned(ref owned) => QRef::Owned(owned),
+            &KeyCompare::Owned(ref owned) => QRef::Shared(owned),
             &KeyCompare::Shared(ref not_null) => QRef::Shared(not_null),
             &KeyCompare::OnlyCompare(q) => QRef::Borrow(q),
         }
@@ -277,7 +277,6 @@ impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> KeyCompare<'k, 'q, K, Q> {
 
 /// See `KeyCompare::as_qref()` for the motivation behind this type.
 enum QRef<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
-    Owned(&'k NotNullOwned<K>),
     Shared(&'k KeySlot<K>),
     Borrow(&'q Q),
 }
@@ -285,7 +284,6 @@ enum QRef<'k, 'q, K: 'k + Borrow<Q>, Q: 'q + ?Sized> {
 impl<'k, 'q, K: Borrow<Q>, Q: ?Sized> QRef<'k, 'q, K, Q> {
     fn as_qref2(&self) -> QRef2<K, Q> {
         match self {
-            &QRef::Owned(not_null) => QRef2::Shared(&**not_null),
             &QRef::Shared(&KeySlot::Key(ref k)) => QRef2::Shared(k),
             &QRef::Shared(&KeySlot::SeeNewTable) =>
                 unreachable!("KeyCompare must contain a `NotNull(KeySlot::Key(K))`"),
@@ -1019,8 +1017,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 } else {
                     match key {
                         KeyCompare::Owned(owned) => {
-                            let insert_key = NotNullOwned::new(KeySlot::Key(*owned.into_owned().into_box()));
-                            match atomic_key_slot.compare_null_and_set_owned(insert_key, guard) {
+                            match atomic_key_slot.compare_null_and_set_owned(owned, guard) {
                                 Ok(shared_key) => {
                                     // TODO: Raise keyslots-used count
                                     key = KeyCompare::Shared(shared_key);
@@ -1028,11 +1025,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                                     break 'find_key_loop;
                                 },
                                 Err((not_null, _return)) => {
-                                    let _return = match *_return.into_owned().into_box() {
-                                        KeySlot::Key(owned) => owned,
-                                        KeySlot::SeeNewTable => unreachable!(),
-                                    };
-                                    key = KeyCompare::Owned(NotNullOwned::new(_return));
+                                    key = KeyCompare::Owned(_return);
                                     not_null
                                 },
                             }
