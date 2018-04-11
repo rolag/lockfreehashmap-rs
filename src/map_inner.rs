@@ -388,6 +388,18 @@ impl<'v, K, V, S> MapInner<'v, K, V, S> {
     /// The default size of a new `LockFreeHashMap`.
     pub const DEFAULT_CAPACITY: usize = ::LockFreeHashMap::<(), (), RandomState>::DEFAULT_CAPACITY;
 
+    /// Returns the capacity of the current map; i.e. the length of the `Vec` storing the key/value
+    /// pairs.
+    pub fn capacity(&self) -> usize {
+        self.map.capacity()
+    }
+
+    /// Returns the size of the current map at some point in time; i.e. the number of key/value
+    /// pairs in the map.
+    pub fn len(&self) -> usize {
+        self.size.load(Ordering::SeqCst)
+    }
+
     /// Drops `self.newer_map` and any newer maps that `self.newer_map` points to.
     pub unsafe fn drop_newer_maps(&self, guard: &Guard) {
         if let Some(newer_map) = self.newer_map.take(guard) {
@@ -869,18 +881,6 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
         where T2: PartialEq<T1>,
     {
         second == first
-    }
-
-    /// Returns the capacity of the current map; i.e. the length of the `Vec` storing the key/value
-    /// pairs.
-    pub fn capacity(&self) -> usize {
-        self.map.capacity()
-    }
-
-    /// Returns the size of the current map at some point in time; i.e. the number of key/value
-    /// pairs in the map.
-    pub fn len(&self) -> usize {
-        self.size.load(Ordering::SeqCst)
     }
 
     /// Returns the current value associated with some key, if any.
