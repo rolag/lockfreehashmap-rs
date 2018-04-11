@@ -471,13 +471,15 @@ mod test {
                 scope.spawn(move || {
                     let guard = pin();
                     map.insert(i, Box::new(i), &guard);
-                    assert_eq!(&i, &**map.get(&i, &guard).unwrap());
+                    let &_i = &**map.get(&i, &guard).expect(&format!("test_resize get {}", i));
+                    assert_eq!(i, _i);
                 });
             }
         });
         let guard = pin();
         for i in 1..256 {
-            assert_eq!(&i, &**map.remove(&i, &guard).unwrap())
+            let &_i = &**map.remove(&i, &guard).expect(&format!("test_resize remove {}", i));
+            assert_eq!(i, _i);
         }
     }
 
@@ -515,17 +517,17 @@ mod test {
                                 valid_states[key].1[value].clone(),
                                 &guard)
                             {
-                                valid_states[key].1.binary_search(previous).unwrap();
+                                valid_states[key].1.binary_search(previous).expect("test_heavy_usage 0");
                             },
                             (1, key, _) => if let Some(previous) = map.remove(
                                 &valid_states[key].0, &guard)
                             {
-                                valid_states[key].1.binary_search(previous).unwrap();
+                                valid_states[key].1.binary_search(previous).expect("test_heavy_usage 1");
                             },
                             (2, key, _) => if let Some(get) = map.get(
                                 &valid_states[key].0, &guard)
                             {
-                                valid_states[key].1.binary_search(get).unwrap();
+                                valid_states[key].1.binary_search(get).expect("test_heavy_usage 2");
                             },
                             _ => unreachable!(),
                         }
