@@ -465,21 +465,20 @@ mod test {
 
     #[test]
     fn test_resize() {
-        let map = &LockFreeHashMap::<u32, Vec<u64>>::with_capacity(4);
+        let map = &LockFreeHashMap::<u32, Box<u32>>::with_capacity(4);
         scope(|scope| {
             for i in 1..256 {
                 scope.spawn(move || {
                     let guard = pin();
-                    let mut vec = vec![];
-                    for i in 1..100 {
-                        vec.push(i);
-                    }
-                    map.insert(i, vec, &guard);
-                    map.remove(&i, &guard);
+                    map.insert(i, Box::new(i), &guard);
+                    assert_eq!(&i, &**map.get(&i, &guard).unwrap());
                 });
             }
         });
-       drop(map);
+        let guard = pin();
+        for i in 1..256 {
+            assert_eq!(&i, &**map.remove(&i, &guard).unwrap())
+        }
     }
 
     #[test]
