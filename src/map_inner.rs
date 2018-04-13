@@ -141,7 +141,6 @@
 use crossbeam_epoch::{Guard, Shared};
 use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
-use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::num::Wrapping;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -363,6 +362,7 @@ pub type KVPair<'v, K, V> = (AtomicPtr<KeySlot<K>>, AtomicPtr<ValueSlot<'v, V>>)
 /// resized, a new `MapInner` must be created and its Key/Value pairs must be copied from this one.
 /// Logically, this struct owns its keys and values, and so is responsible for freeing them when
 /// dropped.
+#[derive(Debug)]
 pub struct MapInner<'v, K, V: 'v, S = RandomState> {
     /// The key/value pairs in this map, allocated as an array of pairs.
     map: Vec<KVPair<'v,K,V>>,
@@ -1202,22 +1202,6 @@ impl<'v, K, V, S> Drop for MapInner<'v, K, V, S> {
             }
         }
         // Don't drop the `newer_map` ptr, because `self` could have been dropped from `promote()`.
-    }
-}
-
-impl<'v, K: fmt::Debug, V: fmt::Debug, S> fmt::Debug for MapInner<'v, K, V, S> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let guard = &::pin();
-        write!(f, "MapInner {{ map: {:?}, size: {:?}, capacity: {}, newer_map: {:?}, resizers: {:?}, chunks_copied: {:?} }}",
-            self.map.iter()
-                .map(|&(ref k, ref v)| (k.load(guard).as_option(), v.load(guard).as_option()))
-                .collect::<Vec<_>>(),
-            self.size.load(Ordering::SeqCst),
-            self.map.capacity(),
-            format!("{:?}", self.newer_map),
-            self.resizers_count.load(Ordering::SeqCst),
-            self.chunks_copied.load(Ordering::SeqCst),
-        )
     }
 }
 
