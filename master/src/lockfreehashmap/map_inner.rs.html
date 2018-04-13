@@ -1250,6 +1250,14 @@
 <span id="1194">1194</span>
 <span id="1195">1195</span>
 <span id="1196">1196</span>
+<span id="1197">1197</span>
+<span id="1198">1198</span>
+<span id="1199">1199</span>
+<span id="1200">1200</span>
+<span id="1201">1201</span>
+<span id="1202">1202</span>
+<span id="1203">1203</span>
+<span id="1204">1204</span>
 </pre><pre class="rust ">
 <span class="comment">// LockFreeHashMap -- A concurrent, lock-free hash map for Rust.</span>
 <span class="comment">// Copyright (C) 2018  rolag</span>
@@ -1354,9 +1362,6 @@
 <span class="doccomment">//!     it needs to copy the current slot into the new map before returning.</span>
 <span class="doccomment">//! (As an implementation detail, it also helps to copy other slots while it&#39;s at it.)</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! This is actually different to the exact algorithm that Click described,</span>
-<span class="doccomment">//!     but it appears to achieve the same goals as his.</span>
-<span class="doccomment">//!</span>
 <span class="doccomment">//! The transitions necessary in both the old and new map are shown below:</span>
 <span class="doccomment">//! ```text</span>
 <span class="doccomment">//! Transition# |        [1]        |        [2]       |        [3]       |         [4]</span>
@@ -1394,7 +1399,6 @@
 <span class="kw">use</span> <span class="ident">crossbeam_epoch</span>::{<span class="ident">Guard</span>, <span class="ident">Shared</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Borrow</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">hash_map</span>::<span class="ident">RandomState</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">hash</span>::{<span class="ident">BuildHasher</span>, <span class="ident">Hash</span>, <span class="ident">Hasher</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">num</span>::<span class="ident">Wrapping</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicUsize</span>, <span class="ident">Ordering</span>};
@@ -1506,14 +1510,14 @@
 <span class="doccomment">/// Sometimes when calling `put_if_match()` we want to insert a key and sometimes we just want to</span>
 <span class="doccomment">/// compare it with some variable of type `Q`. This enum represents which one is intended.</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">KeyCompare</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="lifetime">&#39;q</span>, <span class="ident">K</span>: <span class="lifetime">&#39;k</span> <span class="op">+</span> <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>, <span class="ident">Q</span>: <span class="lifetime">&#39;q</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
-    <span class="ident">Owned</span>(<span class="ident">NotNullOwned</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>),
+    <span class="ident">Owned</span>(<span class="ident">NotNullOwned</span><span class="op">&lt;</span><span class="ident">KeySlot</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;&gt;</span>),
     <span class="ident">Shared</span>(<span class="ident">NotNull</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="ident">KeySlot</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;&gt;</span>),
     <span class="ident">OnlyCompare</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;q</span> <span class="ident">Q</span>),
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="lifetime">&#39;q</span>, <span class="ident">K</span>: <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>, <span class="ident">Q</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">KeyCompare</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="lifetime">&#39;q</span>, <span class="ident">K</span>, <span class="ident">Q</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">key</span>: <span class="ident">K</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
-        <span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="ident">NotNullOwned</span>::<span class="ident">new</span>(<span class="ident">key</span>))
+        <span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="ident">NotNullOwned</span>::<span class="ident">new</span>(<span class="ident">KeySlot</span>::<span class="ident">Key</span>(<span class="ident">key</span>)))
     }
     <span class="doccomment">/// The purpose of this function is to ultimately get a value of type `&amp;Q`.</span>
     <span class="doccomment">/// Because we need to call `deref()` and `borrow()` a few times, we need to put the result of</span>
@@ -1521,7 +1525,7 @@
     <span class="doccomment">/// introduced as helper types to place these values somewhere.</span>
     <span class="kw">fn</span> <span class="ident">as_qref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">QRef</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">Q</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="kw-2">&amp;</span><span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="kw-2">ref</span> <span class="ident">owned</span>) <span class="op">=&gt;</span> <span class="ident">QRef</span>::<span class="ident">Owned</span>(<span class="ident">owned</span>),
+            <span class="kw-2">&amp;</span><span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="kw-2">ref</span> <span class="ident">owned</span>) <span class="op">=&gt;</span> <span class="ident">QRef</span>::<span class="ident">Shared</span>(<span class="ident">owned</span>),
             <span class="kw-2">&amp;</span><span class="ident">KeyCompare</span>::<span class="ident">Shared</span>(<span class="kw-2">ref</span> <span class="ident">not_null</span>) <span class="op">=&gt;</span> <span class="ident">QRef</span>::<span class="ident">Shared</span>(<span class="ident">not_null</span>),
             <span class="kw-2">&amp;</span><span class="ident">KeyCompare</span>::<span class="ident">OnlyCompare</span>(<span class="ident">q</span>) <span class="op">=&gt;</span> <span class="ident">QRef</span>::<span class="ident">Borrow</span>(<span class="ident">q</span>),
         }
@@ -1530,7 +1534,6 @@
 
 <span class="doccomment">/// See `KeyCompare::as_qref()` for the motivation behind this type.</span>
 <span class="kw">enum</span> <span class="ident">QRef</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="lifetime">&#39;q</span>, <span class="ident">K</span>: <span class="lifetime">&#39;k</span> <span class="op">+</span> <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>, <span class="ident">Q</span>: <span class="lifetime">&#39;q</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> {
-    <span class="ident">Owned</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;k</span> <span class="ident">NotNullOwned</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>),
     <span class="ident">Shared</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;k</span> <span class="ident">KeySlot</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>),
     <span class="ident">Borrow</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;q</span> <span class="ident">Q</span>),
 }
@@ -1538,7 +1541,6 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="lifetime">&#39;q</span>, <span class="ident">K</span>: <span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>, <span class="ident">Q</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span> <span class="ident">QRef</span><span class="op">&lt;</span><span class="lifetime">&#39;k</span>, <span class="lifetime">&#39;q</span>, <span class="ident">K</span>, <span class="ident">Q</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">as_qref2</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">QRef2</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">Q</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="kw-2">&amp;</span><span class="ident">QRef</span>::<span class="ident">Owned</span>(<span class="ident">not_null</span>) <span class="op">=&gt;</span> <span class="ident">QRef2</span>::<span class="ident">Shared</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">not_null</span>),
             <span class="kw-2">&amp;</span><span class="ident">QRef</span>::<span class="ident">Shared</span>(<span class="kw-2">&amp;</span><span class="ident">KeySlot</span>::<span class="ident">Key</span>(<span class="kw-2">ref</span> <span class="ident">k</span>)) <span class="op">=&gt;</span> <span class="ident">QRef2</span>::<span class="ident">Shared</span>(<span class="ident">k</span>),
             <span class="kw-2">&amp;</span><span class="ident">QRef</span>::<span class="ident">Shared</span>(<span class="kw-2">&amp;</span><span class="ident">KeySlot</span>::<span class="ident">SeeNewTable</span>) <span class="op">=&gt;</span>
                 <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;KeyCompare must contain a `NotNull(KeySlot::Key(K))`&quot;</span>),
@@ -1618,6 +1620,7 @@
 <span class="doccomment">/// resized, a new `MapInner` must be created and its Key/Value pairs must be copied from this one.</span>
 <span class="doccomment">/// Logically, this struct owns its keys and values, and so is responsible for freeing them when</span>
 <span class="doccomment">/// dropped.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>: <span class="lifetime">&#39;v</span>, <span class="ident">S</span> <span class="op">=</span> <span class="ident">RandomState</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The key/value pairs in this map, allocated as an array of pairs.</span>
     <span class="ident">map</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">KVPair</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>,<span class="ident">K</span>,<span class="ident">V</span><span class="op">&gt;&gt;</span>,
@@ -1634,6 +1637,8 @@
     <span class="doccomment">/// copying to the newer table. Once this reaches `capacity/COPY_CHUNK_SIZE`, we know that the</span>
     <span class="doccomment">/// entire map has been copied into the large `newer_map`.</span>
     <span class="ident">chunks_copied</span>: <span class="ident">AtomicUsize</span>,
+    <span class="doccomment">/// The actual number of key/value pairs that have been copied into the newer map.</span>
+    <span class="ident">slots_copied</span>: <span class="ident">AtomicUsize</span>,
     <span class="doccomment">/// The hasher used to hash keys.</span>
     <span class="ident">hash_builder</span>: <span class="ident">S</span>,
 }
@@ -1642,6 +1647,18 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> <span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The default size of a new `LockFreeHashMap`.</span>
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DEFAULT_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> ::<span class="ident">LockFreeHashMap</span>::<span class="op">&lt;</span>(), (), <span class="ident">RandomState</span><span class="op">&gt;</span>::<span class="ident">DEFAULT_CAPACITY</span>;
+
+    <span class="doccomment">/// Returns the capacity of the current map; i.e. the length of the `Vec` storing the key/value</span>
+    <span class="doccomment">/// pairs.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">capacity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">capacity</span>()
+    }
+
+    <span class="doccomment">/// Returns the size of the current map at some point in time; i.e. the number of key/value</span>
+    <span class="doccomment">/// pairs in the map.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">size</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>)
+    }
 
     <span class="doccomment">/// Drops `self.newer_map` and any newer maps that `self.newer_map` points to.</span>
     <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">drop_newer_maps</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="ident">Guard</span>) {
@@ -1684,6 +1701,7 @@
             <span class="ident">newer_map</span>: <span class="ident">AtomicPtr</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
             <span class="ident">resizers_count</span>: <span class="ident">AtomicUsize</span>::<span class="ident">new</span>(<span class="number">0</span>),
             <span class="ident">chunks_copied</span>: <span class="ident">AtomicUsize</span>::<span class="ident">new</span>(<span class="number">0</span>),
+            <span class="ident">slots_copied</span>: <span class="ident">AtomicUsize</span>::<span class="ident">new</span>(<span class="number">0</span>),
             <span class="ident">hash_builder</span>: <span class="ident">hasher</span>,
         }
     }
@@ -1730,9 +1748,10 @@
                 <span class="comment">// into an even `newer_map`, it can call `promote()` and fail, because it&#39;s not the</span>
                 <span class="comment">// current map. Thus, we call it again here, even if some other thread was</span>
                 <span class="comment">// &quot;supposed&quot; to have called it.</span>
-                <span class="self">self</span>.<span class="ident">promote</span>(<span class="ident">newer_map</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
+                <span class="self">self</span>.<span class="ident">try_promote</span>(<span class="ident">newer_map</span>, <span class="number">0</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
                 <span class="kw">return</span>;
             }
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">slots_copied</span> <span class="op">=</span> <span class="number">0</span>;
             <span class="comment">// Now because `lower_bound` must be less than `upper_bound`, and since we already</span>
             <span class="comment">// assumed that any thread that gets some `chunks_copied` MUST then copy all elements</span>
             <span class="comment">// in that chunk, we MUST do so.  Notice that the `..upper_bound` is exclusive, so it</span>
@@ -1740,22 +1759,18 @@
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">lower_bound</span>..<span class="ident">upper_bound</span> {
                 <span class="comment">// Now simply copy_slot() for each element in the chunk of the array that we&#39;re</span>
                 <span class="comment">// assigned.</span>
-                <span class="self">self</span>.<span class="ident">copy_slot</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">newer_map</span>, <span class="ident">i</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">copy_slot</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">newer_map</span>, <span class="ident">i</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>) {
+                    <span class="ident">slots_copied</span> <span class="op">+=</span> <span class="number">1</span>;
+                }
             }
+            <span class="self">self</span>.<span class="ident">try_promote</span>(<span class="ident">newer_map</span>, <span class="ident">slots_copied</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
             <span class="kw">if</span> <span class="ident">upper_bound</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">capacity</span>() {
-                <span class="comment">// Recall that:</span>
-                <span class="comment">//      1) the `outer_map`, is the `inner: AtomicBox&lt;MapInner&lt;_&gt;&gt;` field in the</span>
-                <span class="comment">//         `LockFreeHashMap` struct.</span>
-                <span class="comment">//      2) Everything has been copied when the chunk whose last element copied is</span>
-                <span class="comment">//         the last element of the array.</span>
-                <span class="comment">//  Thus, the inner field must be promoted to `newer_map`.</span>
-                <span class="self">self</span>.<span class="ident">promote</span>(<span class="ident">newer_map</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
                 <span class="kw">return</span>;
             } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">copy_everything</span> {
                 <span class="comment">// Otherwise, we did not copy everything and there is still more to be done,</span>
                 <span class="comment">// or at least there was more when we last checked `chunks_copied`. If we are not</span>
                 <span class="comment">// required to copy everything, then just return and let some other thread do it.</span>
-                <span class="kw">return</span>
+                <span class="kw">return</span>;
             }
             <span class="comment">// Otherwise, continue the loop and keep copying until everything is copied.</span>
         }
@@ -1806,7 +1821,9 @@
     ) <span class="op">-&gt;</span> <span class="ident">NotNull</span><span class="op">&lt;</span><span class="lifetime">&#39;guard</span>, <span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">newer_map_shared</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">newer_map</span>.<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>);
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">new_map</span>) <span class="op">=</span> <span class="ident">newer_map_shared</span>.<span class="ident">as_option</span>() {
-            <span class="self">self</span>.<span class="ident">copy_slot</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">new_map</span>, <span class="ident">copy_index</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">copy_slot</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">new_map</span>, <span class="ident">copy_index</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>) {
+                <span class="self">self</span>.<span class="ident">slots_copied</span>.<span class="ident">fetch_add</span>(<span class="number">1</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
+            }
             <span class="self">self</span>.<span class="ident">help_copy</span>(<span class="ident">new_map</span>, <span class="bool-val">false</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>);
             <span class="ident">new_map</span>
         } <span class="kw">else</span> {
@@ -1814,14 +1831,40 @@
         }
     }
 
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_promote</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">new_map</span>: <span class="ident">NotNull</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>,
+        <span class="ident">current_slots_copied</span>: <span class="ident">usize</span>,
+        <span class="ident">outer_map</span>: <span class="kw-2">&amp;</span><span class="ident">AtomicBox</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>,
+        <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;guard</span> <span class="ident">Guard</span>
+    ) <span class="op">-&gt;</span> <span class="ident">bool</span>
+    {
+        <span class="kw">let</span> <span class="ident">previous_slots_copied</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">slots_copied</span>.<span class="ident">fetch_add</span>(<span class="ident">current_slots_copied</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
+        <span class="kw">if</span> <span class="ident">current_slots_copied</span> <span class="op">&gt;</span> <span class="number">0</span> {
+        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">previous_slots_copied</span> <span class="op">+</span> <span class="ident">current_slots_copied</span> <span class="op">&lt;=</span> <span class="self">self</span>.<span class="ident">capacity</span>(),
+            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;previous: {} current: {}&quot;</span>, <span class="ident">previous_slots_copied</span>, <span class="ident">current_slots_copied</span>)
+        );
+        }
+        <span class="kw">if</span> <span class="ident">previous_slots_copied</span> <span class="op">+</span> <span class="ident">current_slots_copied</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">capacity</span>() {
+            <span class="self">self</span>.<span class="ident">promote</span>(<span class="ident">new_map</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>)
+        } <span class="kw">else</span> {
+            <span class="bool-val">false</span>
+        }
+    }
+
     <span class="doccomment">/// Copies a single key/value pair from the map in `&amp;self` to the map in `&amp;self.newer_map`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Returns whether or not this thread was the one to copy the slot. Since copying takes</span>
+    <span class="doccomment">/// several transitions that could happen from any thread, it doesn&#39;t matter which transition</span>
+    <span class="doccomment">/// we pick as long as exactly one thread reports true for copying a specific slot.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">copy_slot</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">new_map</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>,
         <span class="ident">old_map_index</span>: <span class="ident">usize</span>,
         <span class="ident">outer_map</span>: <span class="kw-2">&amp;</span><span class="ident">AtomicBox</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>,
         <span class="ident">guard</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;guard</span> <span class="ident">Guard</span>
-    ) {
+    ) <span class="op">-&gt;</span> <span class="ident">bool</span>
+    {
         <span class="doccomment">/// This is necessary because we&#39;re copying a value slot from an older map into a newer</span>
         <span class="doccomment">/// map. Thus, when we call `AtomicPtr::load(_, guard)`, we get a pointer that is only</span>
         <span class="doccomment">/// valid for the guard&#39;s lifetime. But it needs to be inserted into the newer_map and</span>
@@ -1842,7 +1885,7 @@
             <span class="kw">match</span> <span class="ident">cas_key_result</span> {
                 <span class="prelude-val">Ok</span>(<span class="ident">_new_key</span>) <span class="op">=&gt;</span> {
                     <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="kw">if</span> <span class="kw">let</span> <span class="kw-2">&amp;</span><span class="ident">KeySlot</span>::<span class="ident">SeeNewTable</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">_new_key</span> {<span class="bool-val">true</span>} <span class="kw">else</span> {<span class="bool-val">false</span>});
-                    <span class="kw">return</span>;
+                    <span class="kw">return</span> <span class="bool-val">true</span>;
                 },
                 <span class="prelude-val">Err</span>((<span class="ident">current</span>, <span class="ident">new</span>)) <span class="op">=&gt;</span> {
                     <span class="ident">new_key</span> <span class="op">=</span> <span class="ident">new</span>; <span class="comment">// Return ownership</span>
@@ -1855,7 +1898,7 @@
                         <span class="prelude-val">None</span> <span class="op">=&gt;</span> <span class="kw">continue</span>,
                         <span class="prelude-val">Some</span>(<span class="ident">k</span>) <span class="op">=&gt;</span> {
                             <span class="kw">match</span> <span class="ident">k</span>.<span class="ident">deref</span>() {
-                                <span class="kw-2">&amp;</span><span class="ident">KeySlot</span>::<span class="ident">SeeNewTable</span> <span class="op">=&gt;</span> <span class="kw">return</span>,
+                                <span class="kw-2">&amp;</span><span class="ident">KeySlot</span>::<span class="ident">SeeNewTable</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="bool-val">false</span>,
                                 <span class="kw-2">&amp;</span><span class="ident">KeySlot</span>::<span class="ident">Key</span>(_) <span class="op">=&gt;</span> {
                                     <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">current</span>.<span class="ident">as_option</span>().<span class="ident">is_some</span>());
                                     <span class="ident">old_key</span> <span class="op">=</span> <span class="ident">k</span>;
@@ -1909,14 +1952,14 @@
                             <span class="comment">// Successfully did (K,null) -&gt; (K, X). Thus there&#39;s nothing more to do</span>
                             <span class="comment">// here, and we obviously don&#39;t need to free the null pointer.</span>
                             <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">current</span>.<span class="ident">deref</span>().<span class="ident">is_seenewtable</span>());
-                            <span class="kw">return</span>;
+                            <span class="kw">return</span> <span class="bool-val">true</span>;
                         },
                     }
                 },
                 <span class="comment">// Otherwise we have a `ValueSlot` here. Let&#39;s take a little peek inside.</span>
                 <span class="prelude-val">Some</span>(<span class="ident">not_null</span>) <span class="op">=&gt;</span> <span class="kw">match</span> <span class="ident">not_null</span>.<span class="ident">deref</span>() {
                     <span class="comment">// Some other thread copied the slot already. Nothing to do or free here.</span>
-                    <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">SeeNewTable</span>  <span class="op">=&gt;</span> <span class="kw">return</span>,
+                    <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">SeeNewTable</span>  <span class="op">=&gt;</span> <span class="kw">return</span> <span class="bool-val">false</span>,
                     <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">Tombstone</span> <span class="op">=&gt;</span> {
                         <span class="kw">match</span> <span class="ident">atomic_value_slot</span>.<span class="ident">compare_and_set_owned</span>(
                             <span class="ident">old_value</span>,
@@ -1936,7 +1979,7 @@
                                 <span class="comment">// `ValueSlot`s are behind pointers and therefore need to be freed.</span>
                                 <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">_new</span>.<span class="ident">is_seenewtable</span>());
                                 <span class="kw">unsafe</span> { <span class="ident">guard</span>.<span class="ident">defer</span>(<span class="kw">move</span> <span class="op">||</span> <span class="ident">not_null</span>.<span class="ident">drop</span>()); }
-                                <span class="kw">return</span>;
+                                <span class="kw">return</span> <span class="bool-val">true</span>;
                             }
                         }
                     },
@@ -2045,7 +2088,7 @@
                 }
             })}
         }
-        <span class="kw">return</span>;
+        <span class="kw">return</span> <span class="ident">copied_into_new</span>;
     }
 
     <span class="doccomment">/// If `newer_map` doesn&#39;t exist, then this function tries to allocate a newer map that&#39;s</span>
@@ -2126,18 +2169,6 @@
         <span class="ident">second</span> <span class="op">==</span> <span class="ident">first</span>
     }
 
-    <span class="doccomment">/// Returns the capacity of the current map; i.e. the length of the `Vec` storing the key/value</span>
-    <span class="doccomment">/// pairs.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">capacity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">capacity</span>()
-    }
-
-    <span class="doccomment">/// Returns the size of the current map at some point in time; i.e. the number of key/value</span>
-    <span class="doccomment">/// pairs in the map.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">size</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>)
-    }
-
     <span class="doccomment">/// Returns the current value associated with some key, if any.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span><span class="op">&lt;</span><span class="ident">Q</span>: <span class="question-mark">?</span><span class="ident">Sized</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -2163,6 +2194,8 @@
                     <span class="kw">match</span> <span class="ident">atomic_value_slot</span>.<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>).<span class="ident">as_option</span>()<span class="question-mark">?</span>.<span class="ident">deref</span>() {
                         <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">Value</span>(<span class="kw-2">ref</span> <span class="ident">v</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>),
                         <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">Tombstone</span> <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">None</span>,
+                        <span class="comment">// We call ensure_slot_copied() even on `SeeNewTable` because it calls</span>
+                        <span class="comment">// try_promote().</span>
                         <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">ValuePrime</span>(_) <span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">ValueSlot</span>::<span class="ident">SeeNewTable</span> <span class="op">=&gt;</span> {
                             <span class="kw">return</span> <span class="self">self</span>.<span class="ident">ensure_slot_copied</span>(<span class="ident">index</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>)
                                 .<span class="ident">get</span>(<span class="ident">key</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>)
@@ -2181,7 +2214,11 @@
                 },
             }
         }
-        <span class="kw">return</span> <span class="prelude-val">None</span>;
+        <span class="comment">// We exhausted the entire map, so the value could still be inserted into the newer map</span>
+        <span class="kw">return</span> <span class="self">self</span>.<span class="ident">newer_map</span>.<span class="ident">load</span>(<span class="kw-2">&amp;</span><span class="ident">guard</span>)
+            .<span class="ident">as_option</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">newer_map</span><span class="op">|</span> <span class="ident">newer_map</span>.<span class="ident">get</span>(<span class="ident">key</span>, <span class="ident">outer_map</span>, <span class="ident">guard</span>))
+            .<span class="ident">unwrap_or</span>(<span class="prelude-val">None</span>)
     }
 
     <span class="doccomment">/// Increments or decrements the current size of the map, returning the previous value in the</span>
@@ -2272,8 +2309,7 @@
                 } <span class="kw">else</span> {
                     <span class="kw">match</span> <span class="ident">key</span> {
                         <span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="ident">owned</span>) <span class="op">=&gt;</span> {
-                            <span class="kw">let</span> <span class="ident">insert_key</span> <span class="op">=</span> <span class="ident">NotNullOwned</span>::<span class="ident">new</span>(<span class="ident">KeySlot</span>::<span class="ident">Key</span>(<span class="kw-2">*</span><span class="ident">owned</span>.<span class="ident">into_owned</span>().<span class="ident">into_box</span>()));
-                            <span class="kw">match</span> <span class="ident">atomic_key_slot</span>.<span class="ident">compare_null_and_set_owned</span>(<span class="ident">insert_key</span>, <span class="ident">guard</span>) {
+                            <span class="kw">match</span> <span class="ident">atomic_key_slot</span>.<span class="ident">compare_null_and_set_owned</span>(<span class="ident">owned</span>, <span class="ident">guard</span>) {
                                 <span class="prelude-val">Ok</span>(<span class="ident">shared_key</span>) <span class="op">=&gt;</span> {
                                     <span class="comment">// TODO: Raise keyslots-used count</span>
                                     <span class="ident">key</span> <span class="op">=</span> <span class="ident">KeyCompare</span>::<span class="ident">Shared</span>(<span class="ident">shared_key</span>);
@@ -2281,11 +2317,7 @@
                                     <span class="kw">break</span> <span class="lifetime">&#39;find_key_loop</span>;
                                 },
                                 <span class="prelude-val">Err</span>((<span class="ident">not_null</span>, <span class="ident">_return</span>)) <span class="op">=&gt;</span> {
-                                    <span class="kw">let</span> <span class="ident">_return</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">_return</span>.<span class="ident">into_owned</span>().<span class="ident">into_box</span>() {
-                                        <span class="ident">KeySlot</span>::<span class="ident">Key</span>(<span class="ident">owned</span>) <span class="op">=&gt;</span> <span class="ident">owned</span>,
-                                        <span class="ident">KeySlot</span>::<span class="ident">SeeNewTable</span> <span class="op">=&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
-                                    };
-                                    <span class="ident">key</span> <span class="op">=</span> <span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="ident">NotNullOwned</span>::<span class="ident">new</span>(<span class="ident">_return</span>));
+                                    <span class="ident">key</span> <span class="op">=</span> <span class="ident">KeyCompare</span>::<span class="ident">Owned</span>(<span class="ident">_return</span>);
                                     <span class="ident">not_null</span>
                                 },
                             }
@@ -2428,22 +2460,6 @@
             }
         }
         <span class="comment">// Don&#39;t drop the `newer_map` ptr, because `self` could have been dropped from `promote()`.</span>
-    }
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>: <span class="ident">fmt</span>::<span class="ident">Debug</span>, <span class="ident">V</span>: <span class="ident">fmt</span>::<span class="ident">Debug</span>, <span class="ident">S</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">MapInner</span><span class="op">&lt;</span><span class="lifetime">&#39;v</span>, <span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="kw">let</span> <span class="ident">guard</span> <span class="op">=</span> <span class="kw-2">&amp;</span>::<span class="ident">pin</span>();
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;MapInner {{ map: {:?}, size: {:?}, capacity: {}, newer_map: {:?}, resizers: {:?}, chunks_copied: {:?} }}&quot;</span>,
-            <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="kw-2">ref</span> <span class="ident">k</span>, <span class="kw-2">ref</span> <span class="ident">v</span>)<span class="op">|</span> (<span class="ident">k</span>.<span class="ident">load</span>(<span class="ident">guard</span>).<span class="ident">as_option</span>(), <span class="ident">v</span>.<span class="ident">load</span>(<span class="ident">guard</span>).<span class="ident">as_option</span>()))
-                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>_<span class="op">&gt;&gt;</span>(),
-            <span class="self">self</span>.<span class="ident">size</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>),
-            <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">capacity</span>(),
-            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>.<span class="ident">newer_map</span>),
-            <span class="self">self</span>.<span class="ident">resizers_count</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>),
-            <span class="self">self</span>.<span class="ident">chunks_copied</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>),
-        )
     }
 }
 
