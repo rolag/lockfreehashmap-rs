@@ -379,6 +379,8 @@ pub struct MapInner<'v, K, V: 'v, S = RandomState> {
     /// copying to the newer table. Once this reaches `capacity/COPY_CHUNK_SIZE`, we know that the
     /// entire map has been copied into the large `newer_map`.
     chunks_copied: AtomicUsize,
+    /// The actual number of key/value pairs that have been copied into the newer map.
+    slots_copied: AtomicUsize,
     /// The hasher used to hash keys.
     hash_builder: S,
 }
@@ -441,6 +443,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             newer_map: AtomicPtr::new(None),
             resizers_count: AtomicUsize::new(0),
             chunks_copied: AtomicUsize::new(0),
+            slots_copied: AtomicUsize::new(0),
             hash_builder: hasher,
         }
     }
@@ -487,9 +490,10 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 // into an even `newer_map`, it can call `promote()` and fail, because it's not the
                 // current map. Thus, we call it again here, even if some other thread was
                 // "supposed" to have called it.
-                self.promote(newer_map, outer_map, guard);
+                self.try_promote(newer_map, 0, outer_map, guard);
                 return;
             }
+            let mut slots_copied = 0;
             // Now because `lower_bound` must be less than `upper_bound`, and since we already
             // assumed that any thread that gets some `chunks_copied` MUST then copy all elements
             // in that chunk, we MUST do so.  Notice that the `..upper_bound` is exclusive, so it
@@ -497,22 +501,18 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             for i in lower_bound..upper_bound {
                 // Now simply copy_slot() for each element in the chunk of the array that we're
                 // assigned.
-                self.copy_slot(&*newer_map, i, outer_map, guard);
+                if self.copy_slot(&*newer_map, i, outer_map, guard) {
+                    slots_copied += 1;
+                }
             }
+            self.try_promote(newer_map, slots_copied, outer_map, guard);
             if upper_bound == self.capacity() {
-                // Recall that:
-                //      1) the `outer_map`, is the `inner: AtomicBox<MapInner<_>>` field in the
-                //         `LockFreeHashMap` struct.
-                //      2) Everything has been copied when the chunk whose last element copied is
-                //         the last element of the array.
-                //  Thus, the inner field must be promoted to `newer_map`.
-                self.promote(newer_map, outer_map, guard);
                 return;
             } else if !copy_everything {
                 // Otherwise, we did not copy everything and there is still more to be done,
                 // or at least there was more when we last checked `chunks_copied`. If we are not
                 // required to copy everything, then just return and let some other thread do it.
-                return
+                return;
             }
             // Otherwise, continue the loop and keep copying until everything is copied.
         }
@@ -563,7 +563,9 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
     ) -> NotNull<'guard, Self> {
         let newer_map_shared = self.newer_map.load(&guard);
         if let Some(new_map) = newer_map_shared.as_option() {
-            self.copy_slot(&*new_map, copy_index, outer_map, guard);
+            if self.copy_slot(&*new_map, copy_index, outer_map, guard) {
+                self.slots_copied.fetch_add(1, Ordering::SeqCst);
+            }
             self.help_copy(new_map, false, outer_map, guard);
             new_map
         } else {
@@ -571,14 +573,40 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
         }
     }
 
+    pub fn try_promote(
+        &self,
+        new_map: NotNull<Self>,
+        current_slots_copied: usize,
+        outer_map: &AtomicBox<Self>,
+        guard: &'guard Guard
+    ) -> bool
+    {
+        let previous_slots_copied = self.slots_copied.fetch_add(current_slots_copied, Ordering::SeqCst);
+        if current_slots_copied > 0 {
+        debug_assert!(previous_slots_copied + current_slots_copied <= self.capacity(),
+            format!("previous: {} current: {}", previous_slots_copied, current_slots_copied)
+        );
+        }
+        if previous_slots_copied + current_slots_copied == self.capacity() {
+            self.promote(new_map, outer_map, guard)
+        } else {
+            false
+        }
+    }
+
     /// Copies a single key/value pair from the map in `&self` to the map in `&self.newer_map`.
+    ///
+    /// Returns whether or not this thread was the one to copy the slot. Since copying takes
+    /// several transitions that could happen from any thread, it doesn't matter which transition
+    /// we pick as long as exactly one thread reports true for copying a specific slot.
     pub fn copy_slot(
         &self,
         new_map: &Self,
         old_map_index: usize,
         outer_map: &AtomicBox<Self>,
         guard: &'guard Guard
-    ) {
+    ) -> bool
+    {
         /// This is necessary because we're copying a value slot from an older map into a newer
         /// map. Thus, when we call `AtomicPtr::load(_, guard)`, we get a pointer that is only
         /// valid for the guard's lifetime. But it needs to be inserted into the newer_map and
@@ -599,7 +627,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
             match cas_key_result {
                 Ok(_new_key) => {
                     debug_assert!(if let &KeySlot::SeeNewTable = &*_new_key {true} else {false});
-                    return;
+                    return true;
                 },
                 Err((current, new)) => {
                     new_key = new; // Return ownership
@@ -612,7 +640,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                         None => continue,
                         Some(k) => {
                             match k.deref() {
-                                &KeySlot::SeeNewTable => return,
+                                &KeySlot::SeeNewTable => return false,
                                 &KeySlot::Key(_) => {
                                     debug_assert!(current.as_option().is_some());
                                     old_key = k;
@@ -666,14 +694,14 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                             // Successfully did (K,null) -> (K, X). Thus there's nothing more to do
                             // here, and we obviously don't need to free the null pointer.
                             debug_assert!(current.deref().is_seenewtable());
-                            return;
+                            return true;
                         },
                     }
                 },
                 // Otherwise we have a `ValueSlot` here. Let's take a little peek inside.
                 Some(not_null) => match not_null.deref() {
                     // Some other thread copied the slot already. Nothing to do or free here.
-                    &ValueSlot::SeeNewTable  => return,
+                    &ValueSlot::SeeNewTable  => return false,
                     &ValueSlot::Tombstone => {
                         match atomic_value_slot.compare_and_set_owned(
                             old_value,
@@ -693,7 +721,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                                 // `ValueSlot`s are behind pointers and therefore need to be freed.
                                 debug_assert!(_new.is_seenewtable());
                                 unsafe { guard.defer(move || not_null.drop()); }
-                                return;
+                                return true;
                             }
                         }
                     },
@@ -802,7 +830,7 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 }
             })}
         }
-        return;
+        return copied_into_new;
     }
 
     /// If `newer_map` doesn't exist, then this function tries to allocate a newer map that's
@@ -908,6 +936,8 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                     match atomic_value_slot.load(&guard).as_option()?.deref() {
                         &ValueSlot::Value(ref v) => return Some(&v),
                         &ValueSlot::Tombstone => return None,
+                        // We call ensure_slot_copied() even on `SeeNewTable` because it calls
+                        // try_promote().
                         &ValueSlot::ValuePrime(_) | &ValueSlot::SeeNewTable => {
                             return self.ensure_slot_copied(index, outer_map, guard)
                                 .get(key, outer_map, guard)
