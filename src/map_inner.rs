@@ -926,7 +926,11 @@ impl<'guard, 'v: 'guard, K, V, S> MapInner<'v, K,V,S>
                 },
             }
         }
-        return None;
+        // We exhausted the entire map, so the value could still be inserted into the newer map
+        return self.newer_map.load(&guard)
+            .as_option()
+            .map(|newer_map| newer_map.get(key, outer_map, guard))
+            .unwrap_or(None)
     }
 
     /// Increments or decrements the current size of the map, returning the previous value in the
