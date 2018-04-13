@@ -101,9 +101,6 @@
 //!     it needs to copy the current slot into the new map before returning.
 //! (As an implementation detail, it also helps to copy other slots while it's at it.)
 //!
-//! This is actually different to the exact algorithm that Click described,
-//!     but it appears to achieve the same goals as his.
-//!
 //! The transitions necessary in both the old and new map are shown below:
 //! ```text
 //! Transition# |        [1]        |        [2]       |        [3]       |         [4]
