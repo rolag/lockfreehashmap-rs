@@ -35,14 +35,6 @@
 //! that can be changed atomically.
 
 
-// NOTE: To use valgrind, uncomment the lines below and recompile.
-// NOTE: Then `valgrind --leak-check=full --show-leak-kinds=all ./target/debug/deps/lockfreehashmap-***`
-//#![feature(alloc_system, global_allocator, allocator_api)]
-//extern crate alloc_system;
-//use alloc_system::System;
-//#[global_allocator]
-//static A: System = System;
-
 extern crate crossbeam_epoch;
 extern crate crossbeam_utils as crossbeam;
 

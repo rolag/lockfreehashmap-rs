@@ -71,6 +71,19 @@ Documentation is available on [docs.rs](https://docs.rs/lockfreehashmap).
 
 Developer documentation of private types is available [here](https://rolag.github.io/lockfreehashmap-rs/master/lockfreehashmap/).
 
+## Debugging
+To use valgrind, add the following lines to the top of the `src/lib.rs` file.
+
+```rust
+#![feature(alloc_system, global_allocator, allocator_api)]
+extern crate alloc_system;
+use alloc_system::System;
+#[global_allocator]
+static A: System = System;
+```
+
+Then call `valgrind --leak-check=full --show-leak-kinds=all ./target/debug/deps/lockfreehashmap-*`
+
 ## License
 GNU Lesser General Public License v3.0 or any later version
 
