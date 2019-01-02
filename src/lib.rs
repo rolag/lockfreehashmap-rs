@@ -52,7 +52,7 @@ pub use crossbeam_epoch::{pin, Guard};
 pub use crossbeam::scoped::{scope, Scope};
 
 use atomic::AtomicBox;
-use map_inner::{KeyCompare, MapInner, Match, PutValue, ValueSlot};
+use map_inner::{KeyCompare, KeySlot, MapInner, Match, PutValue, ValueSlot};
 
 pub const COPY_CHUNK_SIZE: usize = 32;
 
@@ -310,6 +310,43 @@ impl<'guard, 'v: 'guard, K, V, S> LockFreeHashMap<'v,K,V,S>
         );
         return ValueSlot::as_inner(value_slot);
     }
+
+    /// Returns an iterator over the keys in the map at one point in time. Any keys
+    /// inserted or removed after this point in time may or may not be returned by this iterator.
+    ///
+    /// # Examples
+    /// ```
+    /// # use lockfreehashmap::*;
+    /// let map = LockFreeHashMap::<i32, String>::new();
+    /// let guard = lockfreehashmap::pin();
+    /// map.insert(4, "Four".to_string(), &guard);
+    /// map.insert(8, "Eight".to_string(), &guard);
+    /// map.insert(15, "Fifteen".to_string(), &guard);
+    /// map.insert(16, "Sixteen".to_string(), &guard);
+    /// map.insert(23, "TwentyThree".to_string(), &guard);
+    /// map.insert(42, "FortyTwo".to_string(), &guard);
+    ///
+    /// let mut keys = map.keys(&guard).cloned().collect::<Vec<_>>();
+    /// keys.sort();
+    /// assert_eq!(vec![4, 8, 15, 16, 23, 42], keys);
+    ///
+    /// map.remove(&16, &guard);
+    /// let mut keys = map.keys(&guard).cloned().collect::<Vec<_>>();
+    /// keys.sort();
+    /// assert_eq!(vec![4, 8, 15, 23, 42], keys);
+    /// ```
+    pub fn keys(&self, guard: &'guard Guard) -> Keys<'guard, 'v, K, V, S> {
+        let mut inner = self.inner.load(guard);
+        while let Some(newer_map) = inner.newer_map.load(guard).as_option() {
+            inner.help_copy(newer_map, true, &self.inner, guard);
+            inner = self.inner.load(guard);
+        }
+        Keys {
+            position: 0,
+            guard: guard,
+            map: inner.deref(),
+        }
+    }
 }
 
 impl<'guard, 'v: 'guard, K: Hash + Eq + 'guard, V: PartialEq> LockFreeHashMap<'v,K,V> {
@@ -361,6 +398,37 @@ impl<'guard, 'v: 'guard, K: Hash + Eq + fmt::Debug, V: fmt::Debug + PartialEq>
         write!(f, "LockFreeHashMap {{ {:?} }}", self.load_inner(&guard))
     }
 }
+
+
+#[derive(Debug)]
+pub struct Keys<'guard, 'v, K, V, S> {
+    position: usize,
+    guard: &'guard Guard, 
+    map: &'guard MapInner<'v, K, V, S>,
+}
+
+impl<'guard, 'v, K, V, S> Iterator for Keys<'guard, 'v, K, V, S> {
+    type Item = &'guard K;
+    fn next(&mut self) -> Option<&'guard K> {
+        while self.position < self.map.capacity() {
+            let (k, v) = self.map.get_at(self.position)
+                .expect("called Vec::get() at a position less than capacity");
+            if let (Some(not_null_k), Some(not_null_v)) =
+                (k.load(self.guard).as_option(), v.load(self.guard).as_option())
+            {
+                if let &KeySlot::Key(ref k) = not_null_k.deref() {
+                    if not_null_v.is_value() || not_null_v.is_valueprime() {
+                        self.position += 1;
+                        return Some(k);
+                    }
+                }
+            }
+            self.position += 1;
+        }
+        return None;
+    }
+}
+
 
 #[cfg(test)]
 mod test {

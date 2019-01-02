@@ -366,7 +366,7 @@ pub struct MapInner<'v, K, V: 'v, S = RandomState> {
     /// The amount of key/value pairs in the array, if any.
     size: AtomicUsize,
     /// Points to the newer map or null if none.
-    newer_map: AtomicPtr<MapInner<'v,K,V,S>>,
+    pub(crate) newer_map: AtomicPtr<MapInner<'v,K,V,S>>,
     /// Any thread can allocate memory to resize the map and create `newer_map`. Thus, we want to
     /// try and limit the amount of allocations done. This is a monotonically increasing count of
     /// the number of threads currently trying to allocate a new map, which is used as a heuristic.
@@ -397,6 +397,10 @@ impl<'v, K, V, S> MapInner<'v, K, V, S> {
     /// pairs in the map.
     pub fn len(&self) -> usize {
         self.size.load(Ordering::SeqCst)
+    }
+
+    pub fn get_at(&self, pos: usize) -> Option<&KVPair<'v, K, V>> {
+        self.map.get(pos)
     }
 
     /// Drops `self.newer_map` and any newer maps that `self.newer_map` points to.
