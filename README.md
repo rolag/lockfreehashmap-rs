@@ -1,3 +1,5 @@
+# (THIS PROJECT IS NOW ARCHIVED AND READ-ONLY)
+
 # LockFreeHashMap-rs
 
 [![License](https://img.shields.io/badge/license-LGPL--3.0+-blue.svg)](https://github.com/rolag/lockfreehashmap)
@@ -13,7 +15,6 @@ Additionally, "reference" Java code is available
 [here](https://github.com/boundary/high-scale-lib/blob/master/src/main/java/org/cliffc/high_scale_lib/NonBlockingHashMap.java)
 and more recently
 [here](https://github.com/JCTools/JCTools/blob/master/jctools-core/src/main/java/org/jctools/maps/NonBlockingHashMap.java).
-
 
 ## Getting Started
 
