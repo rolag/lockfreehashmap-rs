@@ -1,5 +1,3 @@
-# (THIS PROJECT IS NOW ARCHIVED AND READ-ONLY)
-
 # LockFreeHashMap-rs
 
 [![License](https://img.shields.io/badge/license-LGPL--3.0+-blue.svg)](https://github.com/rolag/lockfreehashmap)
